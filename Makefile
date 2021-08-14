@@ -1,10 +1,15 @@
 all: build
 
+VERSION=$(shell python  -c 'from src.impira.version import VERSION; print(VERSION)')
+
 build:
 	python3 -m build
 
 publish:
-	python3 -m twine upload dist/*
+	python3 -m twine upload dist/impira-${VERSION}*
+
+clean:
+	rm -rf dist/*
 
 develop:
 	python3 -m venv venv

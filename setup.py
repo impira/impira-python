@@ -1,11 +1,18 @@
+import os
 import setuptools
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+dir_name = os.path.abspath(os.path.dirname(__file__))
+
+version_contents = {}
+with open(os.path.join(dir_name, "src", "impira", "version.py"), encoding="utf-8") as f:
+    exec(f.read(), version_contents)
+
+with open(os.path.join(dir_name, "README.md"), "r", encoding="utf-8") as f:
+    long_description = f.read()
 
 setuptools.setup(
     name="impira",
-    version="0.0.2",
+    version=version_contents['VERSION'],
     author="Impira Engineering",
     author_email="engineering@impira.com",
     description="Official Impira Python SDK",
