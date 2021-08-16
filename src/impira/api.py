@@ -23,10 +23,17 @@ class IQLError(Exception):
     pass
 
 class Impira:
-    def __init__(self, org_name, api_token, base_url='https://app.impira.com'):
+    def __init__(self, org_name, api_token, base_url='https://app.impira.com', ping=True):
         self.org_url = os.path.join(base_url, 'o', org_name)
         self.api_url = os.path.join(self.org_url, 'api/v2')
         self.headers={'X-Access-Token': api_token}
+
+        if ping:
+            try:
+                self._ping()
+            except Exception as e:
+                raise InvalidRequest("Failed to ping Impira API. Please check your org name and API token. Full error: %s" % str(e))
+
 
     @validate_arguments
     def upload_files(self, collection_id: str, files: List[FilePath]):
@@ -97,6 +104,9 @@ class Impira:
             raise IQLError(d['error'])
 
         return resp.json()
+
+    def _ping(self):
+        self.query('@files limit:0')
 
     @validate_arguments
     def _upload_multipart(self, collection_id: str, files: List[FilePath]):
