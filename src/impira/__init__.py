@@ -1,1 +1,1 @@
-from .api import Impira, FilePath, APIError
+from .api_v2 import Impira, FilePath, APIError
