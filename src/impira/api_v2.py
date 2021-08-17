@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 class FilePath(BaseModel):
     name: str
     path: str
+    uid: Optional[str]
 
 class InvalidRequest(Exception):
     pass
@@ -110,8 +111,12 @@ class Impira:
 
     @validate_arguments
     def _upload_multipart(self, collection_id: str, files: List[FilePath]):
+        for f in files:
+            if f.uid is not None:
+                raise InvalidRequest("Unsupported: specifying a UID in a multi-part file upload (%s)" % (f.uid))
+
         files_body = [t for f in files for t in \
-                [('file', open(f.path, 'rb')), ('data', json.dumps({'File': {'name': f.name}}))]]
+                [('file', open(f.path, 'rb')), ('data', json.dumps(_build_file_object(f.name, None, f.uid)))]]
         resp = requests.post(self._build_collection_url(collection_id, use_async=True), headers=self.headers,
                 files=tuple(files_body))
         if not resp.ok:
@@ -122,7 +127,7 @@ class Impira:
     @validate_arguments
     def _upload_url(self, collection_id: str, files: List[FilePath]):
         resp = requests.post(self._build_collection_url(collection_id, use_async=True), headers=self.headers,
-                json={'data': [{'File': {'name': f.name, 'path': f.path}} for f in files]})
+                json={'data': [_build_file_object(f.name, f.path, f.uid) for f in files]})
         if not resp.ok:
             raise APIError(resp)
 
@@ -136,3 +141,10 @@ class Impira:
         return base_url
 
 
+def _build_file_object(name, path=None, uid=None):
+    ret = {'File': {'name': name}}
+    if path is not None:
+        ret['File']['path'] = path
+    if uid is not None:
+        ret['uid'] = uid
+    return ret
