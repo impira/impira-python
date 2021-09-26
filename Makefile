@@ -5,7 +5,7 @@ VERSION=$(shell python  -c 'from src.impira.version import VERSION; print(VERSIO
 build:
 	python3 -m build
 
-publish:
+publish: build
 	python3 -m twine upload dist/impira-${VERSION}*
 
 clean:
