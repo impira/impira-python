@@ -1,7 +1,9 @@
+from enum import Enum
 import json
 import os
 from pydantic import BaseModel, validate_arguments
 import requests
+from urllib.parse import quote_plus
 from typing import List, Optional
 from urllib.parse import urlparse
 
@@ -9,6 +11,27 @@ class FilePath(BaseModel):
     name: str
     path: str
     uid: Optional[str]
+
+class FieldType(str, Enum):
+    string = 'STRING'
+    number = 'NUMBER'
+    bool = 'BOOL'
+    timestamp = 'TIMESTAMP'
+    entity = 'ENTITY'
+
+class FieldSpec(BaseModel):
+    name: str
+    field_type: FieldType
+    expression: Optional[str]
+    path: List[str] = []
+
+    def to_request_json(self):
+        ret = {'field': self.name, 'type': self.field_type}
+        if self.path:
+            ret['path'] = self.path
+        if self.expression:
+            ret['expression'] = self.expression
+        return ret
 
 class InvalidRequest(Exception):
     pass
@@ -22,6 +45,11 @@ class APIError(Exception):
 
 class IQLError(Exception):
     pass
+
+class ResourceType(str, Enum):
+    fc = 'fc'
+    dc = 'dc'
+    collection = 'collection'
 
 class Impira:
     def __init__(self, org_name, api_token, base_url='https://app.impira.com', ping=True):
@@ -57,6 +85,35 @@ class Impira:
             raise InvalidRequest("Found multiple collections with name '%s': %s" % (collection_name, ', '.join(uids)))
 
         return uids[0]
+
+    @validate_arguments
+    def get_app_url(self, resource_type: ResourceType, resource_id: str) -> str:
+        return self._build_resource_url(resource_type, resource_id, api=False, use_async=False)
+
+    @validate_arguments
+    def create_collection(self, collection_name: str):
+        existing = self.get_collection_uid(collection_name)
+        if existing is not None:
+            raise InvalidRequest("Collection with name '%s' already exists at %s" % (collection_name, os.path.join(self.org_url, 'fc', existing)))
+
+        # Create collection is implemented as an empty insert
+        resp = requests.post(self._build_resource_url('collection', collection_name), headers=self.headers, json={'data': []})
+
+        if not resp.ok:
+            raise APIError(resp)
+
+        uid_list = resp.json()['uids']
+        assert not uid_list, "Expected empty uid list while creating a collection, but received: %s" % (", ".join(uid_list))
+
+        return self.get_collection_uid(collection_name)
+
+    @validate_arguments
+    def create_field(self, collection_id: str, field_spec: FieldSpec):
+        resp = requests.post(os.path.join(self.api_url, 'schema/ecs/file_collections::%s/fields' % (collection_id)),
+            headers=self.headers, json=field_spec.to_request_json())
+
+        if not resp.ok:
+            raise APIError(resp)
 
     @validate_arguments
     def poll_for_results(self, collection_id: str, uids: List[str]=None):
@@ -134,8 +191,21 @@ class Impira:
         return resp.json()['uids']
 
     @validate_arguments
+    def _upload_url_collection_name(self, collection_name: str, files: List[FilePath]):
+        resp = requests.post(self._build_collection_url(collection_id, use_async=True), headers=self.headers,
+                json={'data': [_build_file_object(f.name, f.path, f.uid) for f in files]})
+        if not resp.ok:
+            raise APIError(resp)
+
+        return resp.json()['uids']
+
+    @validate_arguments
     def _build_collection_url(self, collection_id: str, use_async=False):
-        base_url = os.path.join(self.api_url, 'fc', collection_id)
+        return self._build_resource_url('fc', collection_id, use_async)
+
+    @validate_arguments
+    def _build_resource_url(self, resource_type: ResourceType, resource_id: str, api=True, use_async=False):
+        base_url = os.path.join(self.api_url if api else self.org_url, resource_type, quote_plus(resource_id))
         if use_async:
             base_url = base_url + '?async=1'
         return base_url
