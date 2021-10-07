@@ -19,6 +19,12 @@ class FieldType(str, Enum):
     timestamp = 'TIMESTAMP'
     entity = 'ENTITY'
 
+class InferredFieldType(Enum):
+    text = {'expression': '`text_string-dev-1`(File.text)', 'type': 'STRING'}
+    number = {'expression': '`text_number-dev-1`(File.text)', 'type': 'NUMBER'}
+    timestamp = {'expression': '`text_date-dev-1`(File.text)', 'type': 'TIMESTAMP'}
+    table = {'expression': 'entity_one_many(File.text)', 'type': 'ENTITY', 'isList': True}
+
 class FieldSpec(BaseModel):
     field: str # This is the field's name
     type: FieldType
@@ -102,12 +108,16 @@ class Impira:
 
     @validate_arguments
     def create_field(self, collection_id: str, field_spec: FieldSpec):
-        print(json.dumps(dict(field_spec)))
         resp = requests.post(os.path.join(self.api_url, 'schema/ecs/file_collections::%s/fields' % (collection_id)),
             headers=self.headers, json=dict(field_spec))
 
         if not resp.ok:
             raise APIError(resp)
+
+    @validate_arguments
+    def create_inferred_field(self, collection_id: str, field_name: str, inferred_field_type: InferredFieldType, path: List[str]=[]):
+        field_spec = FieldSpec(field=field_name, path=path, **inferred_field_type.value)
+        return self.create_field(collection_id, field_spec)
 
     @validate_arguments
     def poll_for_results(self, collection_id: str, uids: List[str]=None):
