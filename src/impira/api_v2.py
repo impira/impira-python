@@ -1,7 +1,7 @@
 from enum import Enum
 import json
 import os
-from pydantic import BaseModel, validate_arguments
+from pydantic import BaseModel, Field, validate_arguments
 import requests
 from urllib.parse import quote_plus
 from typing import List, Optional
@@ -20,18 +20,11 @@ class FieldType(str, Enum):
     entity = 'ENTITY'
 
 class FieldSpec(BaseModel):
-    name: str
-    field_type: FieldType
+    field: str # This is the field's name
+    type: FieldType
     expression: Optional[str]
-    path: List[str] = []
-
-    def to_request_json(self):
-        ret = {'field': self.name, 'type': self.field_type}
-        if self.path:
-            ret['path'] = self.path
-        if self.expression:
-            ret['expression'] = self.expression
-        return ret
+    path: Optional[List[str]]
+    isList: Optional[bool]
 
 class InvalidRequest(Exception):
     pass
@@ -109,8 +102,9 @@ class Impira:
 
     @validate_arguments
     def create_field(self, collection_id: str, field_spec: FieldSpec):
+        print(json.dumps(dict(field_spec)))
         resp = requests.post(os.path.join(self.api_url, 'schema/ecs/file_collections::%s/fields' % (collection_id)),
-            headers=self.headers, json=field_spec.to_request_json())
+            headers=self.headers, json=dict(field_spec))
 
         if not resp.ok:
             raise APIError(resp)
