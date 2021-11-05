@@ -1,6 +1,5 @@
 from enum import Enum
 import json
-import os
 from pydantic import BaseModel, Field, validate_arguments
 import requests
 from urllib.parse import quote_plus
@@ -67,8 +66,8 @@ class Impira:
     def __init__(
         self, org_name, api_token, base_url="https://app.impira.com", ping=True
     ):
-        self.org_url = os.path.join(base_url, "o", org_name)
-        self.api_url = os.path.join(self.org_url, "api/v2")
+        self.org_url = urljoin(base_url, "o", org_name)
+        self.api_url = urljoin(self.org_url, "api/v2")
         self.headers = {"X-Access-Token": api_token}
 
         if ping:
@@ -135,7 +134,7 @@ class Impira:
         if existing is not None:
             raise InvalidRequest(
                 "Collection with name '%s' already exists at %s"
-                % (collection_name, os.path.join(self.org_url, "fc", existing))
+                % (collection_name, urljoin(self.org_url, "fc", existing))
             )
 
         # Create collection is implemented as an empty insert
@@ -160,7 +159,7 @@ class Impira:
     @validate_arguments
     def create_field(self, collection_id: str, field_spec: FieldSpec):
         resp = requests.post(
-            os.path.join(
+            urljoin(
                 self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)
             ),
             headers=self.headers,
@@ -230,7 +229,7 @@ class Impira:
             args["timeout"] = timeout
 
         resp = requests.post(
-            os.path.join(self.api_url, mode),
+            urljoin(self.api_url, mode),
             headers=self.headers,
             json={"query": query},
         )
@@ -305,7 +304,7 @@ class Impira:
     def _build_resource_url(
         self, resource_type: ResourceType, resource_id: str, api=True, use_async=False
     ):
-        base_url = os.path.join(
+        base_url = urljoin(
             self.api_url if api else self.org_url,
             resource_type,
             quote_plus(resource_id),
@@ -322,3 +321,7 @@ def _build_file_object(name, path=None, uid=None):
     if uid is not None:
         ret["uid"] = uid
     return ret
+
+
+def urljoin(*parts):
+    return "/".join([x.lstrip("/") for x in parts])
