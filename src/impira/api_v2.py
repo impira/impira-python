@@ -219,7 +219,7 @@ class Impira:
 
     @validate_arguments
     def query(
-        self, query: str, mode: str = "iql", cursor: str = None, timeout: str = None
+        self, query: str, mode: str = "iql", cursor: str = None, timeout: int = None
     ):
         args = {"query": query}
         if cursor is not None:
@@ -231,7 +231,7 @@ class Impira:
         resp = requests.post(
             urljoin(self.api_url, mode),
             headers=self.headers,
-            json={"query": query},
+            json=args,
         )
         if not resp.ok:
             raise APIError(resp)
