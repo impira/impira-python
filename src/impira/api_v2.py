@@ -1,10 +1,12 @@
+from datetime import datetime
 from enum import Enum
 import json
+import logging
 from pydantic import BaseModel, Field, validate_arguments
 import requests
-from urllib.parse import quote_plus
+import time
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 
 class FilePath(BaseModel):
@@ -30,6 +32,20 @@ class InferredFieldType(Enum):
         "type": "ENTITY",
         "isList": True,
     }
+
+    @property
+    def expr(self):
+        return self.value["expression"]
+
+    @classmethod
+    def match_trainer(cls, trainer: str):
+        ret = None
+        for x in cls:
+            if trainer in x.expr:
+                assert ret is None, "Matched multiple trainers: %s and %s" % (ret, x)
+                ret = x
+        assert ret is not None, "Unknown trainer: %s" % (trainer)
+        return ret
 
 
 class FieldSpec(BaseModel):
@@ -60,6 +76,11 @@ class ResourceType(str, Enum):
     fc = "fc"
     dc = "dc"
     collection = "collection"
+
+
+@validate_arguments
+def parse_date(s: str) -> datetime:
+    return datetime.strptime(s, "%Y-%m-%d")
 
 
 class Impira:
@@ -247,30 +268,36 @@ class Impira:
 
     @validate_arguments
     def _upload_multipart(self, collection_id: str, files: List[FilePath]):
-        for f in files:
-            if f.uid is not None:
-                raise InvalidRequest(
-                    "Unsupported: specifying a UID in a multi-part file upload (%s)"
-                    % (f.uid)
-                )
+        for i in range(60):
+            for f in files:
+                if f.uid is not None:
+                    raise InvalidRequest(
+                        "Unsupported: specifying a UID in a multi-part file upload (%s)"
+                        % (f.uid)
+                    )
 
-        files_body = [
-            t
-            for f in files
-            for t in [
-                ("file", open(f.path, "rb")),
-                ("data", json.dumps(_build_file_object(f.name, None, f.uid))),
+            files_body = [
+                t
+                for f in files
+                for t in [
+                    ("file", open(f.path, "rb")),
+                    ("data", json.dumps(_build_file_object(f.name, None, f.uid))),
+                ]
             ]
-        ]
-        resp = requests.post(
-            self._build_collection_url(collection_id, use_async=True),
-            headers=self.headers,
-            files=tuple(files_body),
-        )
-        if not resp.ok:
-            raise APIError(resp)
-
-        return resp.json()["uids"]
+            resp = requests.post(
+                self._build_collection_url(collection_id, use_async=True),
+                headers=self.headers,
+                files=tuple(files_body),
+            )
+            if resp.status_code == 429:
+                logging.warning(
+                    "Sleeping for 2 seconds and then retrying multi-part upload..."
+                )
+                time.sleep(2)
+            elif not resp.ok:
+                raise APIError(resp)
+            else:
+                return resp.json()["uids"]
 
     @validate_arguments
     def _upload_url(self, collection_id: str, files: List[FilePath]):
