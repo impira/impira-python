@@ -16,11 +16,19 @@ class FilePath(BaseModel):
 
 
 class FieldType(str, Enum):
-    string = "STRING"
+    text = "STRING"
     number = "NUMBER"
     bool = "BOOL"
     timestamp = "TIMESTAMP"
     entity = "ENTITY"
+
+
+class FieldSpec(BaseModel):
+    field: str  # This is the field's name
+    type: FieldType
+    expression: Optional[str]
+    path: Optional[List[str]]
+    isList: Optional[bool]
 
 
 class InferredFieldType(Enum):
@@ -47,13 +55,9 @@ class InferredFieldType(Enum):
         assert ret is not None, "Unknown trainer: %s" % (trainer)
         return ret
 
-
-class FieldSpec(BaseModel):
-    field: str  # This is the field's name
-    type: FieldType
-    expression: Optional[str]
-    path: Optional[List[str]]
-    isList: Optional[bool]
+    @validate_arguments
+    def build_field_spec(self, field_name: str, path: List[str] = []) -> FieldSpec:
+        return FieldSpec(field=field_name, path=path, **self.value)
 
 
 class InvalidRequest(Exception):
@@ -191,6 +195,19 @@ class Impira:
             raise APIError(resp)
 
     @validate_arguments
+    def create_fields(self, collection_id: str, field_specs: List[FieldSpec]):
+        resp = requests.post(
+            urljoin(
+                self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)
+            ),
+            headers=self.headers,
+            json=[dict(field_spec) for field_spec in field_specs],
+        )
+
+        if not resp.ok:
+            raise APIError(resp)
+
+    @validate_arguments
     def create_inferred_field(
         self,
         collection_id: str,
@@ -198,7 +215,9 @@ class Impira:
         inferred_field_type: InferredFieldType,
         path: List[str] = [],
     ):
-        field_spec = FieldSpec(field=field_name, path=path, **inferred_field_type.value)
+        field_spec = inferred_field_type.build_field_spec(
+            field_name=field_name, path=path
+        )
         return self.create_field(collection_id, field_spec)
 
     @validate_arguments
