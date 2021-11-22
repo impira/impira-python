@@ -55,16 +55,44 @@ To upload one or more files, you must provide at a minimum a name and path (eith
 
 ```python
 # Upload a file on your local machine
-impira_api.upload_files("07b71143a26b7163", [
+uids = impira_api.upload_files(collection_id, [
     {"name": "foo.pdf", "path": "/Users/me/Desktop/foo.pdf"}
 ])
                                              
 # Upload multiple files by specifying their URLs
-impira_api.upload_files("07b71143a26b7163", [
+uids = impira_api.upload_files(collection_id, [
     {"name": "foo.pdf", "path": "http://website.com/foo.pdf"},
     {"name": "bar.pdf", "path": "http://website.com/bar.pdf"},
 ])
 ```
+
+The `uids` variable is a list with a `uid` for each file. A file's `uid` is its unique identifier throughout the system. A file that belongs to more than one collection will have the same `uid` in each. You can also optionally specify your own `uid` while uploading a file. If two files have the same `uid`, the system will automatically replace the former with the latter, effectively versioning the file. For more information on uploading files, visit the [Upload API docs](https://www.impira.com/documentation/impira-write-api).
+
+### Polling for results
+
+Impira's API is asynchronous, meaning that uploading files and retrieving predictions from them occur in two separate API requests. While there are many [advanced ways to query for data using IQL](https://www.impira.com/documentation/iql-for-advanced-queries), the SDK offers a simple `poll_for_results()` method that allows you to wait for results to be available for your uploads. Using the `uids` returned from `upload_files()` (as demonstrated above), you can simply run something like
+
+```python
+
+for row in impira_api.poll_for_results(collection_id, uids):
+    print(row)
+```
+
+to retrieve each prediction. Note that `poll_for_results()` returns a generator, so you must iterate through its output to retrieve each result.
+
+### Running IQL queries
+
+You can run arbitrary IQL queries through the API by simply invoking the `query()` method. The response is exactly the same format as [the read API](https://www.impira.com/documentation/impira-read-api) and the SDK also supports poll mode (by passing the `mode="poll"` argument). For example,
+
+```python
+
+response = impira_api.query(
+    "@`file_collections::%s`[uid] highest:Uploaded limit:10" % (collection_id)
+)
+last_10_uids = [row["uid"] for row in response["data"]]
+```
+
+will retrieve the `uid` of each of the last 10 files uploaded to the collection. For more information on how to construct IQL queries, see the [IQL docs](https://www.impira.com/documentation/iql-for-advanced-queries).
 
 ## Examples
 
