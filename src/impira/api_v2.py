@@ -106,7 +106,7 @@ class Impira:
                 )
 
     @validate_arguments
-    def upload_files(self, collection_id: str, files: List[FilePath]):
+    def upload_files(self, collection_id: Optional[str], files: List[FilePath]):
         local_files = len([f for f in files if urlparse(f.path).scheme in ("", "file")])
         if local_files > 0 and local_files != len(files):
             raise InvalidRequest(
@@ -287,7 +287,7 @@ class Impira:
         self.query("@files limit:0")
 
     @validate_arguments
-    def _upload_multipart(self, collection_id: str, files: List[FilePath]):
+    def _upload_multipart(self, collection_id: Optional[str], files: List[FilePath]):
         for i in range(60):
             for f in files:
                 if f.uid is not None:
@@ -320,7 +320,7 @@ class Impira:
                 return resp.json()["uids"]
 
     @validate_arguments
-    def _upload_url(self, collection_id: str, files: List[FilePath]):
+    def _upload_url(self, collection_id: Optional[str], files: List[FilePath]):
         resp = requests.post(
             self._build_collection_url(collection_id, use_async=True),
             headers=self.headers,
@@ -344,8 +344,11 @@ class Impira:
         return resp.json()["uids"]
 
     @validate_arguments
-    def _build_collection_url(self, collection_id: str, use_async=False):
-        return self._build_resource_url("fc", collection_id, use_async)
+    def _build_collection_url(self, collection_id: Optional[str], use_async=False):
+        if collection_id is not None:
+            return self._build_resource_url("fc", collection_id, use_async)
+        else:
+            return self._build_resource_url("files", use_async)
 
     @validate_arguments
     def _build_resource_url(
