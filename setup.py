@@ -30,9 +30,20 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
+    entry_points={
+        "console_scripts": ["impira = impira.cmd.__main__:main"],
+    },
     install_requires=[
         'pydantic',
         'requests',
         'typing',
+
+        # TODO: Make these optional (with an extension?)
+        "boto3",
+        "textract-trp",
+
+        # TODO: Make these optional (or only a doc branch?)
+        "myst-parser >= 0.15",
+        "sphinx >= 4.3",
     ]
 )
