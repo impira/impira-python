@@ -4,6 +4,10 @@ Impira enables you to get everything you need from your PDFs, scanned documents,
 
 **NOTE: This SDK is currently under active development and is likely to break backwards compatibility between point releases. We will update this disclaimer when this changes.**
 
+## Full documentation
+
+Below is an abbreviated set of documentation to help you get started. You can visit the full documentation by visiting the [Impira SDK docs](https://impira.github.io/impira-python/index.html).
+
 ## Requirements
 
 This SDK is tested with Python 3.8+ on Mac OS X and Linux systems. We have users using Windows as well; however, this scenario is not tested automatically. Please reach out if you run into any issues on Windows or another platform.
