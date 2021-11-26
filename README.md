@@ -1,6 +1,6 @@
-# Impira Python SDK
+# Impira Python SDK and CLI
 
-Impira enables you to get everything you need from your PDFs, scanned documents, images, and more — with the help of machine learning. This API allows you to access Impira programatically through Python.
+Impira enables you to get everything you need from your PDFs, scanned documents, images, and more — with the help of machine learning. This API allows you to access Impira programatically through Python and the command line.
 
 **NOTE: This SDK is currently under active development and is likely to break backwards compatibility between point releases. We will update this disclaimer when this changes.**
 
@@ -32,7 +32,11 @@ $ make develop
 
 This will create a virtualenv locally and install the library to it in a manner that automatically updates as you change the source code.
 
-## Overview
+## CLI overview
+
+See [CLI Commands](https://impira.github.io/impira-python/commands.html) in the docs.
+
+## SDK overview
 
 The Impira Python SDK includes utilities to upload and label files, insert and update data, and query data. The core abstraction is the `Impira` object which represents an authenticated connection to your organization. The SDK makes heavy use of the [pydantic](https://pydantic-docs.helpmanual.io/) library to automatically build up and validate function arugments.
 
