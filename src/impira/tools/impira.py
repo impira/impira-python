@@ -117,7 +117,7 @@ class CheckboxSource(BaseModel):
 
 class ScalarLabel(BaseModel):
     class L(BaseModel):
-        Source: Union[CheckboxSource, List[ImpiraWord]]
+        Source: Optional[Union[CheckboxSource, List[ImpiraWord]]]
         IsPrediction: bool = False
         Value: Optional[Any]
 
@@ -534,8 +534,8 @@ class Impira(Tool):
             row["field_name"]: row["model_version"]
             for row in conn.query(
                 """@__system::ecs name='file_collections::%s'
-            [.: flatten(fields[field, infer_func])] 
-            [field_name: field.name, 
+            [.: flatten(fields[field, infer_func])]
+            [field_name: field.name,
                 model_version: join_one(__training_membership, infer_func.model_name, model_name).model_version
             ] -model_version=null"""
                 % (collection_uid)
