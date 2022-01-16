@@ -37,12 +37,23 @@ def build_parser(subparsers, parent_parser):
         type=str,
         help="uid of an existing collection to use",
     )
-
+    collection_args.add_argument(
+        "--name",
+        default=None,
+        type=str,
+        help="optional name for the new collection to create",
+    )
     parser.add_argument(
         "--skip-upload",
         default=False,
         action="store_true",
         help="Skip uploading files into the collection",
+    )
+    parser.add_argument(
+        "--add-files",
+        default=False,
+        action="store_true",
+        help="Add missing files into the collection",
     )
     parser.add_argument(
         "--skip-type-inference",
@@ -88,5 +99,7 @@ def main(args):
         existing_collection_uid=args.collection,
         skip_type_inference=args.skip_type_inference,
         skip_upload=args.skip_upload,
+        add_files=args.add_files,
         skip_new_fields=args.skip_new_fields,
+        collection_name=args.name,
     )

@@ -278,7 +278,7 @@ def generate_labels(
                     value.value,
                 )
                 scalar_label = ScalarLabel(
-                    Label=ScalarLabel.L(Value=str(value.fmt()), Source=[]),
+                    Label=ScalarLabel.L(Value=value.fmt(), Source=[]),
                     Context=ScalarLabel.C(Entities=entities),
                     IsPrediction=False,
                     ModelVersion=model_versions.get(field_name, 0),
@@ -462,7 +462,9 @@ class Impira(Tool):
         existing_collection_uid: Optional[str] = None,
         skip_type_inference=False,
         skip_upload=False,
+        add_files=False,
         skip_new_fields=False,
+        collection_name=None,
     ):
         log = self._log()
 
@@ -471,14 +473,15 @@ class Impira(Tool):
         conn = self._conn()
 
         if existing_collection_uid is None:
-            assert (
-                not skip_upload
+            assert not (
+                skip_upload and not add_files
             ), "Cannot skip uploading if we're creating a new collection."
 
-            collection_name = "%s-%s" % (
-                collection_prefix,
-                uuid4(),
-            )
+            if collection_name is None:
+                collection_name = "%s-%s" % (
+                    collection_prefix,
+                    uuid4(),
+                )
 
             log.info("Creating collection %s" % (collection_name))
             collection_uid = conn.create_collection(collection_name)
@@ -489,6 +492,12 @@ class Impira(Tool):
         log.info(
             "You can visit the collection at: %s"
             % (conn.get_app_url("fc", collection_uid))
+        )
+
+        assert (
+            not skip_upload
+        ) or add_files, (
+            "Cannot add existing files to the collection unless you skip upload"
         )
 
         if not skip_upload:
@@ -506,12 +515,49 @@ class Impira(Tool):
                     )
                 ]
         else:
-            uids = {
-                r["name"]: r
-                for r in conn.query(
-                    "@`file_collections::%s`%s" % (collection_uid, DATA_PROJECTION)
-                )["data"]
-            }
+            while True:
+                uids = {
+                    r["name"]: r
+                    for r in conn.query(
+                        "@`file_collections::%s`%s" % (collection_uid, DATA_PROJECTION)
+                    )["data"]
+                }
+
+                if add_files:
+                    missing_files = [
+                        e.fname.name for e in entries if e.fname.name not in uids
+                    ]
+                    if len(missing_files) == 0:
+                        break
+                    file_filter = "in(File.name, %s)" % (
+                        ",".join(
+                            ['"%s"' % n.replace('"', '\\"') for n in missing_files]
+                        )
+                    )
+                    missing_file_uids = {
+                        r["name"]: r["uid"]
+                        for r in conn.query(
+                            "@files[name: File.name, uid] %s" % (file_filter)
+                        )["data"]
+                    }
+
+                    assert len(missing_file_uids) == len(
+                        missing_files
+                    ), "Only found %d/%d files in the org. Missing: %s" % (
+                        len(missing_file_uids),
+                        len(missing_files),
+                        [x for x in missing_files if x not in missing_file_uids],
+                    )
+                    log.info(
+                        "Adding %d files to %s", len(missing_file_uids), collection_uid
+                    )
+                    conn.add_files_to_collection(
+                        collection_uid, list(missing_file_uids.values())
+                    )
+
+                else:
+                    break
+
             file_data = [uids[e.fname.name] for e in entries]
 
         log.info("File uids: %s", [r["uid"] for r in file_data])

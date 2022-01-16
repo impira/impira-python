@@ -80,6 +80,7 @@ class IQLError(Exception):
 class ResourceType(str, Enum):
     fc = "fc"
     dc = "dc"
+    ec = "ec"
     collection = "collection"
 
 
@@ -147,6 +148,21 @@ class Impira:
             raise APIError(resp)
 
         return resp.json()["uids"]
+
+    @validate_arguments
+    def add_files_to_collection(self, collection_id: str, file_ids: List[str]):
+        resp = requests.post(
+            self._build_resource_url("ec", "file_collection_contents"),
+            headers=self.headers,
+            json={
+                "data": [
+                    {"file_uid": u, "collection_uid": collection_id} for u in file_ids
+                ]
+            },
+        )
+
+        if not resp.ok:
+            raise APIError(resp)
 
     @validate_arguments
     def get_app_url(self, resource_type: ResourceType, resource_id: str) -> str:
