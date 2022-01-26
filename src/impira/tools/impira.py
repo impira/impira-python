@@ -346,7 +346,9 @@ def fields_to_doc_schema(fields) -> DocSchema:
         )
         t = None
         if trainer == InferredFieldType.table:
-            sub_fields = find_path(f, "Label", "Value", "Label", "Value")["children"]
+            sub_fields = find_path(f, "Label", "Value", "Label", "Value").get(
+                "children", []
+            )
             t = fields_to_doc_schema(sub_fields)
         else:
             # TODO: To distinguish between more advanced types like checkboxes
@@ -465,6 +467,8 @@ class Impira(Tool):
         add_files=False,
         skip_new_fields=False,
         collection_name=None,
+        max_fields=-1,
+        max_files=-1,
     ):
         log = self._log()
 
@@ -499,6 +503,13 @@ class Impira(Tool):
         ) or add_files, (
             "Cannot add existing files to the collection unless you skip upload"
         )
+
+        if max_files != -1:
+            new_entries = [e for e in entries]
+            new_entries.sort(
+                key=lambda e: e.record is None
+            )  # Place the rows with records up front
+            entries = new_entries[:max_files]
 
         if not skip_upload:
             files = [
@@ -610,7 +621,7 @@ class Impira(Tool):
         new_fields = []
         field_specs = []
         field_names_to_update = set()
-        for f in schema:
+        for f in schema[:max_fields]:
             field_type = f.field_type
             first_labels = labels[0]
             if (

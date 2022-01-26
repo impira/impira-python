@@ -67,6 +67,18 @@ def build_parser(subparsers, parent_parser):
         action="store_true",
         help="Only label existing fields in the collection",
     )
+    parser.add_argument(
+        "--max-fields",
+        default=-1,
+        type=int,
+        help="Only create up to this many fields",
+    )
+    parser.add_argument(
+        "--max-files",
+        default=-1,
+        type=int,
+        help="Only upload up to this many files",
+    )
     Impira.add_arguments(parser)
 
     parser.set_defaults(func=main)
@@ -102,4 +114,6 @@ def main(args):
         add_files=args.add_files,
         skip_new_fields=args.skip_new_fields,
         collection_name=args.name,
+        max_fields=args.max_fields,
+        max_files=args.max_files,
     )
