@@ -89,6 +89,8 @@ class TimestampLabel(ScalarLabel):
 class CheckboxLabel(ScalarLabel):
     value: Optional[bool]
 
+class SignatureLabel(ScalarLabel):
+    value: Optional[bool]
 
 def traverse(record: Any, fn: Callable[[Any], None]):
     if isinstance(record, ScalarLabel):

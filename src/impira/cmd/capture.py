@@ -25,21 +25,17 @@ def build_parser(subparsers, parent_parser):
     return capture
 
 
-def main(args):
-    log.info("Running '%s' through textract", args.file_name)
-    textract = Textract(config=Textract.Config(**vars(args)))
-    record = textract.process_document(args.file_name)
-
-    fpath = pathlib.Path(args.file_name)
+def save_record(file_name, record, data_dir):
+    fpath = pathlib.Path(file_name)
     fpath_prefix = fpath.name.rsplit(".", 1)[0].replace(" ", "-")
     fpath_prefix = "".join(
         [c for c in fpath_prefix if c.isalpha() or c.isdigit() or c == "-"]
     ).rstrip()
-    workdir = pathlib.Path(args.data).joinpath(
+    workdir = pathlib.Path(data_dir).joinpath(
         "capture", fpath_prefix + "-" + str(uuid4())[:4]
     )
     workdir.mkdir(parents=True, exist_ok=True)
-    copyfile(args.file_name, workdir.joinpath(fpath.name))
+    copyfile(file_name, workdir.joinpath(fpath.name))
 
     docs = [{"fname": fpath.name, "record": record}]
     manifest = DocManifest(doc_schema=record_to_schema(record), docs=docs)
@@ -47,4 +43,13 @@ def main(args):
     with open(workdir.joinpath("manifest.json"), "w") as f:
         f.write(manifest.json(indent=2))
 
+    return workdir
+
+
+def main(args):
+    log.info("Running '%s' through textract", args.file_name)
+    textract = Textract(config=Textract.Config(**vars(args)))
+    record = textract.process_document(args.file_name)
+
+    workdir = save_record(args.file_name, record, args.data)
     log.info("Document has been written to directory '%s'", workdir)

@@ -36,6 +36,7 @@ class InferredFieldType(Enum):
     number = {"expression": "`text_number-dev-1`(File.text)", "type": "NUMBER"}
     timestamp = {"expression": "`text_date-dev-1`(File.text)", "type": "TIMESTAMP"}
     checkbox = {"expression": "checkbox(File.text)", "type": "STRING"}
+    signature = {"expression": "region_signature(File.text)", "type": "STRING"}
     table = {
         "expression": "entity_one_many(File.text)",
         "type": "ENTITY",

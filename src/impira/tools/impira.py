@@ -16,6 +16,7 @@ from ..types import (
     BBox,
     combine_bboxes,
     CheckboxLabel,
+    SignatureLabel,
     DocData,
     DocSchema,
     NumberLabel,
@@ -42,6 +43,8 @@ def label_name_to_inferred_field_type(label_name: str) -> InferredFieldType:
         return InferredFieldType.timestamp
     elif label_name == "CheckboxLabel":
         return InferredFieldType.checkbox
+    elif label_name == "SignatureLabel":
+        return InferredFieldType.signature
     else:
         assert False, "Unknown field label name: %s" % (label_name)
 
@@ -240,7 +243,7 @@ def generate_labels(
                 ),
                 ModelVersion=model_versions.get(field_name, 0),
             )
-        elif isinstance(value, CheckboxLabel):
+        elif isinstance(value, CheckboxLabel) or isinstance(value, SignatureLabel):
             scalar_label = ScalarLabel(
                 Label=ScalarLabel.L(
                     Source=CheckboxSource(BBoxes=[value.location]),
@@ -369,6 +372,10 @@ def fields_to_doc_schema(fields) -> DocSchema:
                 scalar_type == FieldType.bool and trainer == InferredFieldType.checkbox
             ):
                 t = CheckboxLabel.__name__
+            elif (
+                scalar_type == FieldType.bool and trainer == InferredFieldType.signature
+            ):
+                t = SignatureLabel.__name__
             else:
                 assert False, "Unknown scalar type: %s" % (scalar_type)
         ret[f["name"]] = t
@@ -405,7 +412,7 @@ def row_to_record(row, doc_schema: DocSchema) -> Any:
             if scalar is not None:
                 if field_type == "TimestampLabel":
                     scalar = parse_date(scalar)
-                elif field_type == "CheckboxLabel":
+                elif field_type == "CheckboxLabel" or field_type == "SignatureLabel":
                     scalar = scalar[
                         "Value"
                     ]  # Checkboxes are nested inside of an extra 'Value'
@@ -499,8 +506,8 @@ class Impira(Tool):
         )
 
         assert (
-            not skip_upload
-        ) or add_files, (
+            not add_files
+        ) or skip_upload, (
             "Cannot add existing files to the collection unless you skip upload"
         )
 

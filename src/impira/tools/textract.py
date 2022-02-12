@@ -32,49 +32,52 @@ def convert_textract_bbox(bbox, page_num) -> BBox:
     )
 
 
+def parse_field(field, page_num, log=None):
+    if field.value is None:
+        # We don't know the bounding box for the value, so there is no point
+        # trying to define the field
+        return None
+
+    if len(set([type(c) for c in field.value.content])) != 1:
+        if log:
+            log.warning(
+                "Field '%s' on page %d with value '%s' has multiple types: %s. Skipping...",
+                field.key.text,
+                page_num + 1,
+                field.value.text,
+                field.value.content,
+            )
+        return None
+
+    if isinstance(field.value.content[0], SelectionElement):
+        bbox = field.value.geometry.boundingBox
+        assert field.value.text in ("SELECTED", "NOT_SELECTED")
+        value = CheckboxLabel(
+            value=field.value.text == "SELECTED",
+            location=convert_textract_bbox(field.value.geometry.boundingBox, page_num),
+        )
+    elif isinstance(field.value.content[0], Word):
+        # Textract only reports values as "text" types. There is no number parsing (as far as I can tell).
+        # With typed systems like Impira, we rely on their additional information while creating fields
+        # to create a more specific type.
+        bbox = field.value.geometry.boundingBox
+        value = TextLabel(
+            value=field.value.text,
+            location=convert_textract_bbox(field.value.geometry.boundingBox, page_num),
+        )
+    else:
+        assert False, "Unknown value type: %s" % (field.value.content[0])
+
+    return value
+
+
 def doc_to_record(log, doc):
     fields = OrderedDict()
     for page_num, page in enumerate(doc.pages):
         for field in page.form.fields:
-            if field.value is None:
-                # We don't know the bounding box for the value, so there is no point
-                # trying to define the field
-                continue
-
-            if len(set([type(c) for c in field.value.content])) != 1:
-                log.warning(
-                    "Field '%s' on page %d with value '%s' has multiple types: %s. Skipping...",
-                    field.key.text,
-                    page_num + 1,
-                    field.value.text,
-                    field.value.content,
-                )
-                continue
-
-            if isinstance(field.value.content[0], SelectionElement):
-                bbox = field.value.geometry.boundingBox
-                assert field.value.text in ("SELECTED", "NOT_SELECTED")
-                value = CheckboxLabel(
-                    value=field.value.text == "SELECTED",
-                    location=convert_textract_bbox(
-                        field.value.geometry.boundingBox, page_num
-                    ),
-                )
-            elif isinstance(field.value.content[0], Word):
-                # Textract only reports values as "text" types. There is no number parsing (as far as I can tell).
-                # With typed systems like Impira, we rely on their additional information while creating fields
-                # to create a more specific type.
-                bbox = field.value.geometry.boundingBox
-                value = TextLabel(
-                    value=field.value.text,
-                    location=convert_textract_bbox(
-                        field.value.geometry.boundingBox, page_num
-                    ),
-                )
-            else:
-                assert False, "Unknown value type: %s" % (field.value.content[0])
-
-            fields[field.key.text] = value
+            value = parse_field(field, page_num)
+            if value is not None:
+                fields[field.key.text] = value
 
     # Construct a pydantic object for this record
     T = schema_to_model(record_to_schema(fields))
@@ -134,7 +137,7 @@ class Textract(Tool):
         self.config.s3_bucket = matching_bucket
 
     @validate_arguments
-    def process_document(self, fname: pathlib.Path, forms=True, tables=False):
+    def textract_document(self, fname: pathlib.Path, forms=True, tables=False):
         self._init_bucket()
 
         log = self._log()
@@ -184,5 +187,10 @@ class Textract(Tool):
             log.debug("Cleaning up file on S3")
             s3.delete_object(Bucket=self.config.s3_bucket, Key=key)
 
-        doc = Document(pages)
-        return doc_to_record(log, doc)
+        return Document(pages)
+
+    @validate_arguments
+    def process_document(self, fname: pathlib.Path, forms=True, tables=False):
+        doc = self.textract_document(fname, forms, tables)
+
+        return doc_to_record(self._log(), doc)
