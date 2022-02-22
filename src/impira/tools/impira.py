@@ -358,7 +358,7 @@ def fields_to_doc_schema(fields) -> DocSchema:
             # and signatures, we should look at the trainer directly (not the
             # scalar type).
             path = ["Label", "Value"]
-            if trainer == InferredFieldType.checkbox:
+            if trainer in (InferredFieldType.checkbox, InferredFieldType.signature):
                 path.append("Value")
 
             scalar_type = find_path(f, *path)["fieldType"]
