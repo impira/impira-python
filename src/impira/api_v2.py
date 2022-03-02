@@ -83,6 +83,7 @@ class ResourceType(str, Enum):
     dc = "dc"
     ec = "ec"
     collection = "collection"
+    files = "files"
 
 
 @validate_arguments
@@ -363,19 +364,27 @@ class Impira:
     @validate_arguments
     def _build_collection_url(self, collection_id: Optional[str], use_async=False):
         if collection_id is not None:
-            return self._build_resource_url("fc", collection_id, use_async)
+            return self._build_resource_url("fc", collection_id, use_async=use_async)
         else:
-            return self._build_resource_url("files", use_async)
+            return self._build_resource_url("files", None, use_async=use_async)
 
     @validate_arguments
     def _build_resource_url(
-        self, resource_type: ResourceType, resource_id: str, api=True, use_async=False
+        self,
+        resource_type: ResourceType,
+        resource_id: Optional[str],
+        api=True,
+        use_async=False,
     ):
-        base_url = urljoin(
+        parts = [
             self.api_url if api else self.org_url,
             resource_type,
-            quote_plus(resource_id),
-        )
+        ]
+
+        if resource_id is not None:
+            parts.append(quote_plus(resource_id))
+
+        base_url = urljoin(*parts)
         if use_async:
             base_url = base_url + "?async=1"
         return base_url
