@@ -88,7 +88,13 @@ class ResourceType(str, Enum):
 
 @validate_arguments
 def parse_date(s: str) -> datetime:
-    return datetime.strptime(s, "%Y-%m-%d")
+    try:
+        return datetime.strptime(s, "%Y-%m-%d")
+    except ValueError:
+        try:
+            return datetime.strptime(s, "%Y-%m")
+        except ValueError:
+            return datetime.strptime(s, "%Y")
 
 
 class Impira:
