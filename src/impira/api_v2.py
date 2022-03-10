@@ -98,9 +98,7 @@ def parse_date(s: str) -> datetime:
 
 
 class Impira:
-    def __init__(
-        self, org_name, api_token, base_url="https://app.impira.com", ping=True
-    ):
+    def __init__(self, org_name, api_token, base_url="https://app.impira.com", ping=True):
         self.org_url = urljoin(base_url, "o", org_name)
         self.api_url = urljoin(self.org_url, "api/v2")
         self.headers = {"X-Access-Token": api_token}
@@ -110,8 +108,7 @@ class Impira:
                 self._ping()
             except Exception as e:
                 raise InvalidRequest(
-                    "Failed to ping Impira API. Please check your org name and API token. Full error: %s"
-                    % str(e)
+                    "Failed to ping Impira API. Please check your org name and API token. Full error: %s" % str(e)
                 )
 
     @validate_arguments
@@ -119,8 +116,7 @@ class Impira:
         local_files = len([f for f in files if urlparse(f.path).scheme in ("", "file")])
         if local_files > 0 and local_files != len(files):
             raise InvalidRequest(
-                "All files must be local or URLs, but not a mix (%d/%d were local)"
-                % (local_files, len(files))
+                "All files must be local or URLs, but not a mix (%d/%d were local)" % (local_files, len(files))
             )
         elif local_files > 0:
             return self._upload_multipart(collection_id, files)
@@ -129,18 +125,13 @@ class Impira:
 
     @validate_arguments
     def get_collection_uid(self, collection_name: str):
-        resp = self.query('@__system::collections[uid] Name="%s"' % (collection_name))[
-            "data"
-        ]
+        resp = self.query('@__system::collections[uid] Name="%s"' % (collection_name))["data"]
         if len(resp) == 0:
             return None
 
         uids = [x["uid"] for x in resp]
         if len(uids) > 1:
-            raise InvalidRequest(
-                "Found multiple collections with name '%s': %s"
-                % (collection_name, ", ".join(uids))
-            )
+            raise InvalidRequest("Found multiple collections with name '%s': %s" % (collection_name, ", ".join(uids)))
 
         return uids[0]
 
@@ -162,11 +153,7 @@ class Impira:
         resp = requests.post(
             self._build_resource_url("ec", "file_collection_contents"),
             headers=self.headers,
-            json={
-                "data": [
-                    {"file_uid": u, "collection_uid": collection_id} for u in file_ids
-                ]
-            },
+            json={"data": [{"file_uid": u, "collection_uid": collection_id} for u in file_ids]},
         )
 
         if not resp.ok:
@@ -174,9 +161,7 @@ class Impira:
 
     @validate_arguments
     def get_app_url(self, resource_type: ResourceType, resource_id: str) -> str:
-        return self._build_resource_url(
-            resource_type, resource_id, api=False, use_async=False
-        )
+        return self._build_resource_url(resource_type, resource_id, api=False, use_async=False)
 
     @validate_arguments
     def create_collection(self, collection_name: str):
@@ -198,9 +183,7 @@ class Impira:
             raise APIError(resp)
 
         uid_list = resp.json()["uids"]
-        assert (
-            not uid_list
-        ), "Expected empty uid list while creating a collection, but received: %s" % (
+        assert not uid_list, "Expected empty uid list while creating a collection, but received: %s" % (
             ", ".join(uid_list)
         )
 
@@ -209,9 +192,7 @@ class Impira:
     @validate_arguments
     def create_field(self, collection_id: str, field_spec: FieldSpec):
         resp = requests.post(
-            urljoin(
-                self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)
-            ),
+            urljoin(self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)),
             headers=self.headers,
             json=dict(field_spec),
         )
@@ -222,9 +203,7 @@ class Impira:
     @validate_arguments
     def create_fields(self, collection_id: str, field_specs: List[FieldSpec]):
         resp = requests.post(
-            urljoin(
-                self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)
-            ),
+            urljoin(self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)),
             headers=self.headers,
             json=[dict(field_spec) for field_spec in field_specs],
         )
@@ -240,16 +219,12 @@ class Impira:
         inferred_field_type: InferredFieldType,
         path: List[str] = [],
     ):
-        field_spec = inferred_field_type.build_field_spec(
-            field_name=field_name, path=path
-        )
+        field_spec = inferred_field_type.build_field_spec(field_name=field_name, path=path)
         return self.create_field(collection_id, field_spec)
 
     @validate_arguments
     def poll_for_results(self, collection_id: str, uids: List[str] = None):
-        uid_filter = (
-            "and in(uid, %s)" % (", ".join(['"%s"' % u for u in uids])) if uids else ""
-        )
+        uid_filter = "and in(uid, %s)" % (", ".join(['"%s"' % u for u in uids])) if uids else ""
         query = """
         @`file_collections::%s`
             File.IsPreprocessed=true and __system.IsProcessed=true
@@ -283,9 +258,7 @@ class Impira:
                 break
 
     @validate_arguments
-    def query(
-        self, query: str, mode: str = "iql", cursor: str = None, timeout: int = None
-    ):
+    def query(self, query: str, mode: str = "iql", cursor: str = None, timeout: int = None):
         args = {"query": query}
         if cursor is not None:
             args["cursor"] = cursor
@@ -315,10 +288,7 @@ class Impira:
         for i in range(60):
             for f in files:
                 if f.uid is not None:
-                    raise InvalidRequest(
-                        "Unsupported: specifying a UID in a multi-part file upload (%s)"
-                        % (f.uid)
-                    )
+                    raise InvalidRequest("Unsupported: specifying a UID in a multi-part file upload (%s)" % (f.uid))
 
             files_body = [
                 t
@@ -334,9 +304,7 @@ class Impira:
                 files=tuple(files_body),
             )
             if resp.status_code == 429:
-                logging.warning(
-                    "Sleeping for 2 seconds and then retrying multi-part upload..."
-                )
+                logging.warning("Sleeping for 2 seconds and then retrying multi-part upload...")
                 time.sleep(2)
             elif not resp.ok:
                 raise APIError(resp)
