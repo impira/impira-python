@@ -76,10 +76,7 @@ class TimestampLabel(ScalarLabel):
     @staticmethod
     @validate_arguments
     def from_date(date: Optional[date], **kwargs):
-        return TimestampLabel(
-            value=datetime.combine(date, datetime.min.time()) if date else None,
-            **kwargs
-        )
+        return TimestampLabel(value=datetime.combine(date, datetime.min.time()) if date else None, **kwargs)
 
     # TODO: support more timestamp formatting options
     def fmt(self):
@@ -89,8 +86,10 @@ class TimestampLabel(ScalarLabel):
 class CheckboxLabel(ScalarLabel):
     value: Optional[bool]
 
+
 class SignatureLabel(ScalarLabel):
     value: Optional[bool]
+
 
 def traverse(record: Any, fn: Callable[[Any], None]):
     if isinstance(record, ScalarLabel):

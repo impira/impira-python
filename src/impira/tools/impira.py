@@ -53,18 +53,12 @@ def generate_schema(doc_schema: DocSchema) -> List[SchemaField]:
     fields = []
     for field_name, value in doc_schema.fields.items():
         if isinstance(value, DocSchema):
-            fields.append(
-                SchemaField(name=field_name, field_type=InferredFieldType.table)
-            )
+            fields.append(SchemaField(name=field_name, field_type=InferredFieldType.table))
             for sub_field in generate_schema(value):
                 sub_field.path.insert(0, field_name)
                 fields.append(sub_field)
         else:
-            fields.append(
-                SchemaField(
-                    name=field_name, field_type=label_name_to_inferred_field_type(value)
-                )
-            )
+            fields.append(SchemaField(name=field_name, field_type=label_name_to_inferred_field_type(value)))
 
     return fields
 
@@ -175,8 +169,7 @@ class EntityMap(BaseModel):
         unique_entity_indices = set()
         for i, c in entity_index_counts.items():
             if (not match_subsets and c < len(rivlets)) or (
-                not match_supersets
-                and len(self.entities[i].source_rivlets) > len(rivlets)
+                not match_supersets and len(self.entities[i].source_rivlets) > len(rivlets)
             ):
                 continue
 
@@ -220,16 +213,12 @@ def generate_labels(
     labels = {}
     for field_name, value in dict(record).items():
         if isinstance(value, List):
-            rows = [
-                generate_labels(log, file_name, v, words, entity_map, model_versions)
-                for v in value
-            ]
+            rows = [generate_labels(log, file_name, v, words, entity_map, model_versions) for v in value]
             row_labels = [
                 RowLabel(
                     Label=RowLabel.L(
                         Value=row,
-                        IsPrediction=any([v.is_prediction() for v in row.values()])
-                        or len(row.values()) == 0,
+                        IsPrediction=any([v.is_prediction() for v in row.values()]) or len(row.values()) == 0,
                     )
                 )
                 # TODO: For benchmarking, we'll want to reduce the number of labels we provide in a table
@@ -238,8 +227,7 @@ def generate_labels(
             labels[field_name] = TableLabel(
                 Label=TableLabel.L(
                     Value=row_labels,
-                    IsPrediction=any([r.is_prediction() for r in row_labels])
-                    or len(row_labels) == 0,
+                    IsPrediction=any([r.is_prediction() for r in row_labels]) or len(row_labels) == 0,
                 ),
                 ModelVersion=model_versions.get(field_name, 0),
             )
@@ -259,11 +247,7 @@ def generate_labels(
             labels[field_name] = scalar_label
         elif value is not None:
             w = find_overlapping_words(value, words)
-            candidate_entities = [
-                e
-                for x in w
-                for e in entity_map.find_entities([x], match_supersets=True)
-            ]
+            candidate_entities = [e for x in w for e in entity_map.find_entities([x], match_supersets=True)]
             target_type = label_name_to_inferred_field_type(type(value).__name__)
 
             for e in candidate_entities:
@@ -329,12 +313,7 @@ def find_path(root, *path):
 
 @validate_arguments
 def filter_inferred_fields(fields):
-    return [
-        f
-        for f in fields
-        if "comment" in f
-        and json.loads(f["comment"])["field_template"] == "inferred_field_spec"
-    ]
+    return [f for f in fields if "comment" in f and json.loads(f["comment"])["field_template"] == "inferred_field_spec"]
 
 
 @validate_arguments
@@ -343,15 +322,11 @@ def fields_to_doc_schema(fields) -> DocSchema:
     for f in fields:
         comment = json.loads(f["comment"])
         trainer = (
-            InferredFieldType.match_trainer(comment["infer_func"]["trainer_name"])
-            if "infer_func" in comment
-            else None
+            InferredFieldType.match_trainer(comment["infer_func"]["trainer_name"]) if "infer_func" in comment else None
         )
         t = None
         if trainer == InferredFieldType.table:
-            sub_fields = find_path(f, "Label", "Value", "Label", "Value").get(
-                "children", []
-            )
+            sub_fields = find_path(f, "Label", "Value", "Label", "Value").get("children", [])
             t = fields_to_doc_schema(sub_fields)
         else:
             # TODO: To distinguish between more advanced types like checkboxes
@@ -368,13 +343,9 @@ def fields_to_doc_schema(fields) -> DocSchema:
                 t = NumberLabel.__name__
             elif scalar_type == FieldType.timestamp:
                 t = TimestampLabel.__name__
-            elif (
-                scalar_type == FieldType.bool and trainer == InferredFieldType.checkbox
-            ):
+            elif scalar_type == FieldType.bool and trainer == InferredFieldType.checkbox:
                 t = CheckboxLabel.__name__
-            elif (
-                scalar_type == FieldType.bool and trainer == InferredFieldType.signature
-            ):
+            elif scalar_type == FieldType.bool and trainer == InferredFieldType.signature:
                 t = SignatureLabel.__name__
             else:
                 assert False, "Unknown scalar type: %s" % (scalar_type)
@@ -389,14 +360,8 @@ def row_to_record(row, doc_schema: DocSchema) -> Any:
         label = None
         value = row[field_name]
         if isinstance(field_type, DocSchema):
-            table_rows = [
-                row_label["Label"]["Value"] for row_label in value["Label"]["Value"]
-            ]
-            label = [
-                x
-                for x in [row_to_record(tr, field_type) for tr in table_rows]
-                if x is not None
-            ]
+            table_rows = [row_label["Label"]["Value"] for row_label in value["Label"]["Value"]]
+            label = [x for x in [row_to_record(tr, field_type) for tr in table_rows] if x is not None]
             if not label:
                 continue
         elif value is not None:
@@ -413,9 +378,7 @@ def row_to_record(row, doc_schema: DocSchema) -> Any:
                 if field_type == "TimestampLabel":
                     scalar = parse_date(scalar)
                 elif field_type == "CheckboxLabel" or field_type == "SignatureLabel":
-                    scalar = scalar[
-                        "Value"
-                    ]  # Checkboxes are nested inside of an extra 'Value'
+                    scalar = scalar["Value"]  # Checkboxes are nested inside of an extra 'Value'
             label = {"location": location, "value": scalar}
         d[field_name] = label
 
@@ -445,10 +408,7 @@ class Impira(Tool):
     def add_arguments(parser):
         parser.add_argument("--api-token", **environ_or_required("IMPIRA_API_TOKEN"))
         parser.add_argument("--org-name", **environ_or_required("IMPIRA_ORG_NAME"))
-        parser.add_argument(
-            "--base-url",
-            **environ_or_required("IMPIRA_BASE_URL", "https://app.impira.com")
-        )
+        parser.add_argument("--base-url", **environ_or_required("IMPIRA_BASE_URL", "https://app.impira.com"))
 
     @validate_arguments
     def __init__(self, config: Config):
@@ -484,9 +444,7 @@ class Impira(Tool):
         conn = self._conn()
 
         if existing_collection_uid is None:
-            assert not (
-                skip_upload and not add_files
-            ), "Cannot skip uploading if we're creating a new collection."
+            assert not (skip_upload and not add_files), "Cannot skip uploading if we're creating a new collection."
 
             if collection_name is None:
                 collection_name = "%s-%s" % (
@@ -500,28 +458,17 @@ class Impira(Tool):
         else:
             collection_uid = existing_collection_uid
 
-        log.info(
-            "You can visit the collection at: %s"
-            % (conn.get_app_url("fc", collection_uid))
-        )
+        log.info("You can visit the collection at: %s" % (conn.get_app_url("fc", collection_uid)))
 
-        assert (
-            not add_files
-        ) or skip_upload, (
-            "Cannot add existing files to the collection unless you skip upload"
-        )
+        assert (not add_files) or skip_upload, "Cannot add existing files to the collection unless you skip upload"
 
         if max_files != -1:
             new_entries = [e for e in entries]
-            new_entries.sort(
-                key=lambda e: e.record is None
-            )  # Place the rows with records up front
+            new_entries.sort(key=lambda e: e.record is None)  # Place the rows with records up front
             entries = new_entries[:max_files]
 
         if not skip_upload:
-            files = [
-                {"path": e.url or str(e.fname), "name": e.fname.name} for e in entries
-            ]
+            files = [{"path": e.url or str(e.fname), "name": e.fname.name} for e in entries]
 
             log.info("Uploading %d files", len(files))
             with ThreadPoolExecutor(max_workers=parallelism) as t:
@@ -536,27 +483,19 @@ class Impira(Tool):
             while True:
                 uids = {
                     r["name"]: r
-                    for r in conn.query(
-                        "@`file_collections::%s`%s" % (collection_uid, DATA_PROJECTION)
-                    )["data"]
+                    for r in conn.query("@`file_collections::%s`%s" % (collection_uid, DATA_PROJECTION))["data"]
                 }
 
                 if add_files:
-                    missing_files = [
-                        e.fname.name for e in entries if e.fname.name not in uids
-                    ]
+                    missing_files = [e.fname.name for e in entries if e.fname.name not in uids]
                     if len(missing_files) == 0:
                         break
                     file_filter = "in(File.name, %s)" % (
-                        ",".join(
-                            ['"%s"' % n.replace('"', '\\"') for n in missing_files]
-                        )
+                        ",".join(['"%s"' % n.replace('"', '\\"') for n in missing_files])
                     )
                     missing_file_uids = {
                         r["name"]: r["uid"]
-                        for r in conn.query(
-                            "@files[name: File.name, uid] %s" % (file_filter)
-                        )["data"]
+                        for r in conn.query("@files[name: File.name, uid] %s" % (file_filter))["data"]
                     }
 
                     assert len(missing_file_uids) == len(
@@ -566,12 +505,8 @@ class Impira(Tool):
                         len(missing_files),
                         [x for x in missing_files if x not in missing_file_uids],
                     )
-                    log.info(
-                        "Adding %d files to %s", len(missing_file_uids), collection_uid
-                    )
-                    conn.add_files_to_collection(
-                        collection_uid, list(missing_file_uids.values())
-                    )
+                    log.info("Adding %d files to %s", len(missing_file_uids), collection_uid)
+                    conn.add_files_to_collection(collection_uid, list(missing_file_uids.values()))
 
                 else:
                     break
@@ -589,9 +524,7 @@ class Impira(Tool):
                 labeled_files.append(file_data[i])
 
         if len(labeled_entries) == 0:
-            log.warning(
-                "No records have labels. Stopping now that uploads have completed."
-            )
+            log.warning("No records have labels. Stopping now that uploads have completed.")
             return
 
         model_versions = {
@@ -621,9 +554,7 @@ class Impira(Tool):
             )
 
         schema_resp = conn.query("@file_collections::%s limit:0" % (collection_uid))
-        current_fields = fields_to_doc_schema(
-            filter_inferred_fields(schema_resp["schema"]["children"])
-        ).fields
+        current_fields = fields_to_doc_schema(filter_inferred_fields(schema_resp["schema"]["children"])).fields
 
         new_fields = []
         field_specs = []
@@ -631,11 +562,7 @@ class Impira(Tool):
         for f in schema[:max_fields]:
             field_type = f.field_type
             first_labels = labels[0]
-            if (
-                f.name in first_labels
-                and isinstance(first_labels[f.name], ScalarLabel)
-                and not skip_type_inference
-            ):
+            if f.name in first_labels and isinstance(first_labels[f.name], ScalarLabel) and not skip_type_inference:
                 entities = first_labels[f.name].Context.Entities
                 unique_entity_types = set(
                     [field_type]
@@ -651,12 +578,8 @@ class Impira(Tool):
                 elif InferredFieldType.number in unique_entity_types:
                     field_type = InferredFieldType.number
 
-            if f.name in current_fields or (
-                len(f.path) > 0 and f.path[0] in current_fields
-            ):
-                existing_field = current_fields.get(f.name) or current_fields.get(
-                    f.path[0]
-                )
+            if f.name in current_fields or (len(f.path) > 0 and f.path[0] in current_fields):
+                existing_field = current_fields.get(f.name) or current_fields.get(f.path[0])
                 if isinstance(existing_field, DocSchema):
                     field_names_to_update.add(f.name)
                     continue
@@ -687,9 +610,7 @@ class Impira(Tool):
         if len(field_specs) > 0:
             conn.create_fields(collection_uid, field_specs)
 
-        fields_to_update = [
-            f for f in schema if len(f.path) == 0 and f.name in field_names_to_update
-        ]
+        fields_to_update = [f for f in schema if len(f.path) == 0 and f.name in field_names_to_update]
 
         # Snapshot the model version and its cursor for new fields. Old fields are not going to change
         # their values (unless the labels have changed, which is not something we distinguish).
@@ -715,10 +636,7 @@ class Impira(Tool):
 
         mv_query = "@`file_collections::%s`[sum_mv: %s]" % (
             collection_uid,
-            " + ".join(
-                ["0"]
-                + ["SUM(`%s`.`ModelVersion`)" % (f.name) for f in fields_to_update]
-            ),
+            " + ".join(["0"] + ["SUM(`%s`.`ModelVersion`)" % (f.name) for f in fields_to_update]),
         )
 
         # Unfortunately, polling doesn't work for "min" queries, so we just run a normal query
@@ -748,10 +666,7 @@ class Impira(Tool):
                 for (fd, ld) in zip(labeled_files, labels)
             ],
         )
-        log.info(
-            "Done running update on %d files. Models will now update!"
-            % len(labeled_files)
-        )
+        log.info("Done running update on %d files. Models will now update!" % len(labeled_files))
 
         # This code is currently too brittle to be useful, since model versions aren't a reliable way of knowing
         # when evaluation has finished. We can reintroduce it once we have a better strategy in place.
@@ -782,9 +697,7 @@ class Impira(Tool):
         conn = self._conn()
         resp = conn.query("@file_collections::%s" % (collection_uid))
 
-        doc_schema = fields_to_doc_schema(
-            filter_inferred_fields(resp["schema"]["children"])
-        )
+        doc_schema = fields_to_doc_schema(filter_inferred_fields(resp["schema"]["children"]))
         records = [
             {
                 "url": row["File"]["download_url"],
@@ -794,8 +707,6 @@ class Impira(Tool):
             for row in resp["data"]
         ]
 
-        assert len(records) == len(
-            set([r["name"] for r in records])
-        ), "Expected each filename to be unique"
+        assert len(records) == len(set([r["name"] for r in records])), "Expected each filename to be unique"
 
         return doc_schema, records
