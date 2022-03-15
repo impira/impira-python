@@ -356,7 +356,7 @@ class Impira:
         ]
 
         if resource_id is not None:
-            parts.append(quote_plus(resource_id))
+            parts.append(resource_id)
 
         base_url = urljoin(*parts)
         if use_async:
