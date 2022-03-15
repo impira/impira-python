@@ -749,27 +749,30 @@ class Impira(Tool):
             ],
         )
         log.info(
-            "Done running update on %d files. Now waiting for models to update!"
+            "Done running update on %d files. Models will now update!"
             % len(labeled_files)
         )
 
-        while True:
-            resp = conn.query(
-                mv_query + " [sum_mv] sum_mv >= %d" % (target),
-            )
-            try:
-                resp = resp["data"][0]
-                break
-            except Exception as e:
-                time.sleep(1)
-                continue
-
-        # TODO: We know this undercounts a bit, so we should probably check the "spinner" query too
-
-        log.debug(
-            "Current minimum model version %s",
-            resp["sum_mv"],
-        )
+        # This code is currently too brittle to be useful, since model versions aren't a reliable way of knowing
+        # when evaluation has finished. We can reintroduce it once we have a better strategy in place.
+        #
+        #        while True:
+        #            resp = conn.query(
+        #                mv_query + " [sum_mv] sum_mv >= %d" % (target),
+        #            )
+        #            try:
+        #                resp = resp["data"][0]
+        #                break
+        #            except Exception as e:
+        #                time.sleep(1)
+        #                continue
+        #
+        #        # TODO: We know this undercounts a bit, so we should probably check the "spinner" query too
+        #
+        #        log.debug(
+        #            "Current minimum model version %s",
+        #            resp["sum_mv"],
+        #        )
         log.info("Done!")
 
     @validate_arguments
