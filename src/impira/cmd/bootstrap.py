@@ -84,9 +84,8 @@ def build_parser(subparsers, parent_parser):
     parser.set_defaults(func=main)
     return parser
 
-
-def main(args):
-    workdir = pathlib.Path(args.data)
+def prepare_manifest(dataDir):
+    workdir = pathlib.Path(dataDir)
 
     manifest_file = workdir.joinpath("manifest.json")
 
@@ -101,6 +100,11 @@ def main(args):
         assert doc.url is not None or doc.fname.exists()
         if doc.record is not None:
             doc.record = M.parse_obj(doc.record)
+
+    return manifest
+
+def main(args):
+    manifest = prepare_manifest(args.data)
 
     tool = Impira(config=Impira.Config(**vars(args)))
     tool.run(

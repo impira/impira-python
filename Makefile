@@ -12,7 +12,7 @@ clean:
 	rm -rf dist/*
 
 develop:
-	python3 -m venv venv
+	python3.8 -m venv venv
 	bash -c 'source venv/bin/activate && python3 -m pip install --upgrade pip'
 	bash -c 'source venv/bin/activate && python3 -m pip install setuptools'
 	bash -c 'source venv/bin/activate && python3 -m pip install -e .'
