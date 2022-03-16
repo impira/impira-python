@@ -2,6 +2,7 @@ import argparse
 from datetime import timedelta
 import multiprocessing
 import os
+import random
 from urllib.parse import urlparse
 import time
 
@@ -11,50 +12,82 @@ from impira.cmd.bootstrap import prepare_manifest
 
 from impira.tools.impira import Impira as ImpiraBootstrap
 
+BATCH_SIZE = 20
+SEED = 333
+
 
 def pagination_query(api: impira.Impira, collection_id: str):
     query = "@`file_collections::%s`[uid]" % (collection_id)
-    api.query(query)
+    return api.query(query)
 
 
 def collection_query(api: impira.Impira, collection_id: str):
     query = "@`file_collections::%s`[.: __resolve(.)]" % (collection_id)
-    api.query(query)
+    return api.query(query)
 
 
-def _get_inferred_fields(api: impira.Impira, collection_id: str):
-    query = """
-    @`__system::ecs`[id, fields: (fields[id, name: field.name, template: field_template, trainer: infer_func.trainer_name])] name="file_collections::%s" 
-    [.:flatten(merge_unnest(build_entity("ec_id", id), fields))] 
-    [.] template="inferred_field_spec"
-    """ % (collection_id)
-    result = api.query(query)
-    return result
+def _preprare_uid_filtered_collection_query(api: impira.Impira, collection_id: str):
+    result = pagination_query(api, collection_id)
+    uids = []
+    for row in result["data"]:
+        uid = row.get("uid", None)
+        if uid != None:
+            uids.append(uid)
+    
+    assert len(uids) > 0, "Pagination query returned no uids"
+
+    # Sort the UIDs and then shuffle using a seed to get deterministic filter for the benchmark across iterations
+    uids.sort()
+    random.Random(SEED).shuffle(uids)
+
+    filters = []
+    for uid in uids[:BATCH_SIZE]:
+        filters.append("uid=\"{}\"".format(uid))
+
+    query = "@`file_collections::%s`[.: __resolve(.)] %s" % (collection_id, " OR ".join(filters))
+    return [api, query]
 
 
-def _get_field_info_with_trainer(api: impira.Impira, collection_id: str, trainer: str):
-    inferred_fields = _get_inferred_fields(api, collection_id)
-    ret = None
-    for field in inferred_fields:
-        if field["trainer"] == trainer:
-            ret = field
+def uid_filtered_collection_query(api: impira.Impira, query: str):
+    return api.query(query)
 
-    assert ret != None, "Could not find field with trainer: %s" % trainer 
-    return ret
 
-def get_table_field_info(api: impira.Impira, collection_id: str):
-    return _get_field_info_with_trainer(api, collection_id, "text_number-dev-1")
+# def _get_inferred_fields(api: impira.Impira, collection_id: str):
+#     query = """
+#     @`__system::ecs`[id, fields: (fields[id, name: field.name, template: field_template, trainer: infer_func.trainer_name])] name="file_collections::%s" 
+#     [.:flatten(merge_unnest(build_entity("ec_id", id), fields))] 
+#     [.] template="inferred_field_spec"
+#     """ % (collection_id)
+#     result = api.query(query)
+#     return result
+
+
+# def _get_field_info_with_trainer(api: impira.Impira, collection_id: str, trainer: str):
+#     inferred_fields = _get_inferred_fields(api, collection_id)
+#     ret = None
+#     for field in inferred_fields:
+#         if field["trainer"] == trainer:
+#             ret = field
+
+#     assert ret != None, "Could not find field with trainer: %s" % trainer 
+#     return ret
+
+# def get_table_field_info(api: impira.Impira, collection_id: str):
+#     return _get_field_info_with_trainer(api, collection_id, "text_number-dev-1")
 
      
-def get_text_field_info(api: impira.Impira, collection_id: str):
-    return _get_field_info_with_trainer(api, collection_id, "entity_one_many")
+# def get_text_field_info(api: impira.Impira, collection_id: str):
+#     return _get_field_info_with_trainer(api, collection_id, "entity_one_many")
 
 
-def benchmark_function(function, num_runs, args):
+def benchmark_function(function, prepare_fn, num_runs, args):
     total_time = 0
     for _ in range(num_runs):
         start = time.time()
-        function(*args)
+        arguments = args
+        if prepare_fn != None:
+            arguments = prepare_fn(*args)
+        function(*arguments)
         end = time.time()
         delta = end - start
         total_time += (delta * 1000)
@@ -119,16 +152,20 @@ if __name__ == "__main__":
             "args": [impira_api, collection_id]
         },
         {
-            "name": "Collection Query", 
+            "name": "Full Collection Query", 
             "function": collection_query,
+            "args": [impira_api, collection_id]
+        },
+        {
+            "name": "Uid Filtered Collection Query", 
+            "prepare_fn": _preprare_uid_filtered_collection_query,
+            "function": uid_filtered_collection_query,
             "args": [impira_api, collection_id]
         },
     ]
 
-    # TODO: Query for all fields, train and eval a text field and an inferred field
-
     num_runs = 5
 
     for benchmark in benchmarks:
-        avg_time = benchmark_function(benchmark["function"], num_runs, benchmark["args"])
+        avg_time = benchmark_function(benchmark["function"], benchmark.get("prepare_fn", None), num_runs, benchmark["args"])
         print("{}: {}ms".format(benchmark["name"], avg_time))
