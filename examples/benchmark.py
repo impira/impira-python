@@ -15,6 +15,8 @@ from impira.tools.impira import Impira as ImpiraBootstrap
 BATCH_SIZE = 20
 SEED = 333
 
+ZERO_CURSOR = "0200000000000000000000"
+
 
 def pagination_query(api: impira.Impira, collection_id: str):
     query = "@`file_collections::%s`[uid]" % (collection_id)
@@ -33,7 +35,7 @@ def _preprare_uid_filtered_collection_query(api: impira.Impira, collection_id: s
         uid = row.get("uid", None)
         if uid != None:
             uids.append(uid)
-    
+
     assert len(uids) > 0, "Pagination query returned no uids"
 
     # Sort the UIDs and then shuffle using a seed to get deterministic filter for the benchmark across iterations
@@ -44,7 +46,8 @@ def _preprare_uid_filtered_collection_query(api: impira.Impira, collection_id: s
     for uid in uids[:BATCH_SIZE]:
         filters.append("uid=\"{}\"".format(uid))
 
-    query = "@`file_collections::%s`[.: __resolve(.)] %s" % (collection_id, " OR ".join(filters))
+    query = "@`file_collections::%s`[.: __resolve(.)] %s" % (
+        collection_id, " OR ".join(filters))
     return [api, query]
 
 
@@ -52,10 +55,15 @@ def uid_filtered_collection_query(api: impira.Impira, query: str):
     return api.query(query)
 
 
+def ie_collection_query(api: impira.Impira, collection_id: str):
+    query = "@`file_collections::%s`[.: __resolve(.)]" % (collection_id)
+    api.query(query=query, mode="poll", cursor=ZERO_CURSOR, timeout=0)
+
+
 # def _get_inferred_fields(api: impira.Impira, collection_id: str):
 #     query = """
-#     @`__system::ecs`[id, fields: (fields[id, name: field.name, template: field_template, trainer: infer_func.trainer_name])] name="file_collections::%s" 
-#     [.:flatten(merge_unnest(build_entity("ec_id", id), fields))] 
+#     @`__system::ecs`[id, fields: (fields[id, name: field.name, template: field_template, trainer: infer_func.trainer_name])] name="file_collections::%s"
+#     [.:flatten(merge_unnest(build_entity("ec_id", id), fields))]
 #     [.] template="inferred_field_spec"
 #     """ % (collection_id)
 #     result = api.query(query)
@@ -69,13 +77,13 @@ def uid_filtered_collection_query(api: impira.Impira, query: str):
 #         if field["trainer"] == trainer:
 #             ret = field
 
-#     assert ret != None, "Could not find field with trainer: %s" % trainer 
+#     assert ret != None, "Could not find field with trainer: %s" % trainer
 #     return ret
 
 # def get_table_field_info(api: impira.Impira, collection_id: str):
 #     return _get_field_info_with_trainer(api, collection_id, "text_number-dev-1")
 
-     
+
 # def get_text_field_info(api: impira.Impira, collection_id: str):
 #     return _get_field_info_with_trainer(api, collection_id, "entity_one_many")
 
@@ -100,8 +108,9 @@ if __name__ == "__main__":
     parser.add_argument("--org-name", type=str, default=None, required=True)
     parser.add_argument("--api-token", type=str, default=None, required=True)
     parser.add_argument("--collection", type=str, default=None)
-    parser.add_argument("--base-url",type=str, default=None, required=True)
-    parser.add_argument("--parallelism", default=multiprocessing.cpu_count(), type=int)
+    parser.add_argument("--base-url", type=str, default=None, required=True)
+    parser.add_argument(
+        "--parallelism", default=multiprocessing.cpu_count(), type=int)
 
     parser.add_argument(
         "--data",
@@ -113,13 +122,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    impira_api = impira.Impira(org_name=args.org_name, api_token=args.api_token, base_url=args.base_url)
+    impira_api = impira.Impira(
+        org_name=args.org_name, api_token=args.api_token, base_url=args.base_url)
 
     # Create the collection if not specified by user
     collection_id = args.collection
     if args.collection is None:
         name = "Benchmark-" + str(time.time_ns() // 1000)
-        collection_id = impira_api.create_collection(name) 
+        collection_id = impira_api.create_collection(name)
         print("Created collection '%s' with uid='%s'" % (name, collection_id))
 
     # Bootstrap the collection
@@ -147,19 +157,24 @@ if __name__ == "__main__":
 
     benchmarks = [
         {
-            "name": "Pagination Query", 
+            "name": "Pagination Query",
             "function": pagination_query,
             "args": [impira_api, collection_id]
         },
         {
-            "name": "Full Collection Query", 
+            "name": "Full Collection Query",
             "function": collection_query,
             "args": [impira_api, collection_id]
         },
         {
-            "name": "Uid Filtered Collection Query", 
+            "name": "Uid Filtered Collection Query",
             "prepare_fn": _preprare_uid_filtered_collection_query,
             "function": uid_filtered_collection_query,
+            "args": [impira_api, collection_id]
+        },
+        {
+            "name": "Full Collection Query (IE)",
+            "function": ie_collection_query,
             "args": [impira_api, collection_id]
         },
     ]
@@ -167,5 +182,6 @@ if __name__ == "__main__":
     num_runs = 5
 
     for benchmark in benchmarks:
-        avg_time = benchmark_function(benchmark["function"], benchmark.get("prepare_fn", None), num_runs, benchmark["args"])
+        avg_time = benchmark_function(benchmark["function"], benchmark.get(
+            "prepare_fn", None), num_runs, benchmark["args"])
         print("{}: {}ms".format(benchmark["name"], avg_time))
