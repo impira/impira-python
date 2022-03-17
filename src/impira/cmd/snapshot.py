@@ -46,6 +46,13 @@ def build_parser(subparsers, parent_parser):
         help="Use original filenames (without concatenating a uid). This will fail if two files in the collection have the same name",
     )
 
+    parser.add_argument(
+        "--labeled-files-only",
+        default=False,
+        action="store_true",
+        help="Only saved labeled files",
+    )
+
     parser.set_defaults(func=main)
     return parser
 
@@ -58,12 +65,12 @@ def download_file_to(url, path):
 
 def main(args):
     impira = Impira(config=Impira.Config(**vars(args)))
-    workdir = pathlib.Path(args.data).joinpath(
-        "capture", args.collection + "-" + str(uuid4())[:4]
-    )
+    workdir = pathlib.Path(args.data).joinpath("capture", args.collection + "-" + str(uuid4())[:4])
 
     schema, records = impira.snapshot(
-        collection_uid=args.collection, use_original_filenames=args.original_names
+        collection_uid=args.collection,
+        use_original_filenames=args.original_names,
+        labeled_files_only=args.labeled_files_only,
     )
 
     log.info("Downloading %d files to %s", len(records), workdir)
@@ -81,10 +88,7 @@ def main(args):
 
         docs = [{"fname": r["name"], "record": r["record"]} for r in records]
     else:
-        docs = [
-            {"fname": r["name"], "url": r["url"], "record": r["record"]}
-            for r in records
-        ]
+        docs = [{"fname": r["name"], "url": r["url"], "record": r["record"]} for r in records]
 
     manifest = DocManifest(
         doc_schema=schema,

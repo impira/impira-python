@@ -432,6 +432,7 @@ class Impira(Tool):
         skip_type_inference=False,
         skip_upload=False,
         add_files=False,
+        skip_missing_files=False,
         skip_new_fields=False,
         collection_name=None,
         max_fields=-1,
@@ -510,6 +511,9 @@ class Impira(Tool):
 
                 else:
                     break
+
+            if skip_missing_files:
+                entries = [e for e in entries if e.fname.name in uids]
 
             file_data = [uids[e.fname.name] for e in entries]
 
@@ -691,7 +695,7 @@ class Impira(Tool):
         log.info("Done!")
 
     @validate_arguments
-    def snapshot(self, collection_uid: str, use_original_filenames=False):
+    def snapshot(self, collection_uid: str, use_original_filenames=False, labeled_files_only=False):
         log = self._log()
 
         conn = self._conn()
@@ -706,6 +710,9 @@ class Impira(Tool):
             }
             for row in resp["data"]
         ]
+
+        if labeled_files_only:
+            records = [r for r in records if r["record"] is not None]
 
         assert len(records) == len(set([r["name"] for r in records])), "Expected each filename to be unique"
 

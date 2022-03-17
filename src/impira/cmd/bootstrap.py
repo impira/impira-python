@@ -27,10 +27,7 @@ def build_parser(subparsers, parent_parser):
     )
 
     collection_args = parser.add_mutually_exclusive_group()
-    collection_args.add_argument(
-        "--collection-prefix",
-        **environ_or_required("IMPIRA_COLLECTION_PREFIX", "impira-cli")
-    )
+    collection_args.add_argument("--collection-prefix", **environ_or_required("IMPIRA_COLLECTION_PREFIX", "impira-cli"))
     collection_args.add_argument(
         "--collection",
         default=None,
@@ -54,6 +51,12 @@ def build_parser(subparsers, parent_parser):
         default=False,
         action="store_true",
         help="Add missing files into the collection",
+    )
+    parser.add_argument(
+        "--skip-missing-files",
+        default=False,
+        action="store_true",
+        help="Skip missing files while labeling the collection",
     )
     parser.add_argument(
         "--skip-type-inference",
@@ -111,6 +114,7 @@ def main(args):
         existing_collection_uid=args.collection,
         skip_type_inference=args.skip_type_inference,
         skip_upload=args.skip_upload,
+        skip_missing_files=args.skip_missing_files,
         add_files=args.add_files,
         skip_new_fields=args.skip_new_fields,
         collection_name=args.name,
