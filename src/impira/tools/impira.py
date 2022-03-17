@@ -563,7 +563,7 @@ class Impira(Tool):
         new_fields = []
         field_specs = []
         field_names_to_update = set()
-        for f in schema[:max_fields]:
+        for f in schema[:max_fields] if max_fields != -1 else schema:
             field_type = f.field_type
             first_labels = labels[0]
             if f.name in first_labels and isinstance(first_labels[f.name], ScalarLabel) and not skip_type_inference:
@@ -610,7 +610,8 @@ class Impira(Tool):
                 field_specs.append(field_type.build_field_spec(f.name, f.path))
                 field_names_to_update.add(f.name)
 
-        log.info("Creating fields")
+        log.info("Creating fields: %s" % (field_names_to_update))
+
         if len(field_specs) > 0:
             conn.create_fields(collection_uid, field_specs)
 
