@@ -15,10 +15,12 @@ from impira.tools.impira import Impira as ImpiraBootstrap
 BATCH_SIZE = 20
 SEED = 333
 
-ZERO_CURSOR = "0200000000000000000000"
+START_CURSOR = "0200000000000000000001"
 
 TABLE_TRAINER = "entity_one_many"
 TEXT_TRAINER = "text_string-dev-1"
+
+NUM_ITERS = 10
 
 
 def pagination_query(api: impira.Impira, collection_id: str):
@@ -60,7 +62,7 @@ def uid_filtered_collection_query(api: impira.Impira, query: str):
 
 def ie_collection_query(api: impira.Impira, collection_id: str):
     query = "@`file_collections::%s`[.: __resolve(.)]" % (collection_id)
-    api.query(query=query, mode="poll", cursor=ZERO_CURSOR, timeout=0)
+    api.query(query=query, mode="poll", cursor=START_CURSOR, timeout=0)
 
 
 def _get_inferred_fields(api: impira.Impira, collection_id: str):
@@ -131,7 +133,7 @@ def _prepare_train_input_field_query(api: impira.Impira, org_id: int, collection
 
 
 def train_input_text_field_query(api: impira.Impira, query: str):
-    api.query(query=query, mode="poll", cursor=ZERO_CURSOR, timeout=0)
+    api.query(query=query, mode="poll", cursor=START_CURSOR, timeout=0)
 
 
 def benchmark_function(function, prepare_fn, num_runs, args):
@@ -166,8 +168,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data",
         "-d",
-        required=True,
         type=str,
+        default=None,
         help="Directory containing data to bootstrap collection. This directory should contain one or more documents and a manifest (see `impira snapshot -h`). These documents should already be uploaded to the organization.",
     )
 
@@ -179,32 +181,35 @@ if __name__ == "__main__":
   # Create the collection if not specified by user
     collection_id = args.collection
     if args.collection is None:
+        assert args.data != None, "--data required to bootstrap collection"
         name = "Benchmark-" + str(time.time_ns() // 1000)
         collection_id = impira_api.create_collection(name)
         print("Created collection '%s' with uid='%s'" % (name, collection_id))
 
     # Bootstrap the collection
 
-    manifest = prepare_manifest(args.data)
+    if args.data != None:
+        manifest = prepare_manifest(args.data)
 
-    print("If this is the first time adding these files to this collection, the setup will probably hang. Once evaluation has concluded, you should CTRL+C and restart this benchmark.")
+        print("If this is the first time adding these files to this collection, the setup will probably hang. Once evaluation has concluded, you should CTRL+C and restart this benchmark.")
 
-    bootstrap = ImpiraBootstrap(config=ImpiraBootstrap.Config(**vars(args)))
-    bootstrap.run(
-        manifest.doc_schema,
-        manifest.docs,
-        collection_prefix="impira-cli-benchmark",
-        parallelism=args.parallelism,
-        existing_collection_uid=collection_id,
-        skip_type_inference=False,
-        skip_upload=True,
-        add_files=True,
-        skip_new_fields=False,
-    )
+        bootstrap = ImpiraBootstrap(
+            config=ImpiraBootstrap.Config(**vars(args)))
+        bootstrap.run(
+            manifest.doc_schema,
+            manifest.docs,
+            collection_prefix="impira-cli-benchmark",
+            parallelism=args.parallelism,
+            existing_collection_uid=collection_id,
+            skip_type_inference=False,
+            skip_upload=True,
+            add_files=True,
+            skip_new_fields=False,
+        )
+        print("Setup collection with uid: %s" % (collection_id))
 
-    # get_inferred_fields(impira_api, collection_id)
-
-    print("Setup collection with uid: %s" % (collection_id))
+    else:
+        assert args.collection != None, "--collection required if not bootstrapping"
 
     benchmarks = [
         {
@@ -242,9 +247,7 @@ if __name__ == "__main__":
         }
     ]
 
-    num_runs = 5
-
     for benchmark in benchmarks:
         avg_time = benchmark_function(benchmark["function"], benchmark.get(
-            "prepare_fn", None), num_runs, benchmark["args"])
+            "prepare_fn", None), NUM_ITERS, benchmark["args"])
         print("{}: {}ms".format(benchmark["name"], avg_time))
