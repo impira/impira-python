@@ -190,6 +190,16 @@ class Impira:
         return self.get_collection_uid(collection_name)
 
     @validate_arguments
+    def delete_field(self, collection_id: str, field_name: str):
+        resp = requests.delete(
+            urljoin(self.api_url, "schema/ecs/file_collections::%s/fields/%s" % (collection_id, field_name)),
+            headers=self.headers,
+        )
+
+        if not resp.ok:
+            raise APIError(resp)
+
+    @validate_arguments
     def create_field(self, collection_id: str, field_spec: FieldSpec):
         resp = requests.post(
             urljoin(self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)),
