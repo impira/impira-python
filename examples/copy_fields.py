@@ -47,7 +47,7 @@ if __name__ == "__main__":
         dst_collection_uid = conn.create_collection(args.dst_collection_name)
         logging.info(
             "You can visit the new collection (%s) at: %s"
-            % (args.dst_collection_name, conn.get_app_url("fc", new_collection_uid))
+            % (args.dst_collection_name, conn.get_app_url("fc", dst_collection_uid))
         )
 
     src_fields = [
