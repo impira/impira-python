@@ -37,10 +37,18 @@ if __name__ == "__main__":
     src_ec = collections[0]["field_ec"]
 
     if len(conn.query('@file_collections name="%s"' % (args.dst_collection_name))["data"]) != 0:
-        logging.fatal(
-            "Destination collection '%s' already exists. Please pick a differet name", args.dst_collection_name
+        logging.warning(
+            "Destination collection '%s' already exists. Will add fields to the existing collection.",
+            args.dst_collection_name,
         )
-        exit(1)
+        dst_collection_uid = conn.get_collection_uid(args.dst_collection_name)
+    else:
+        logging.info("Creating collection '%s'...", args.dst_collection_name)
+        dst_collection_uid = conn.create_collection(args.dst_collection_name)
+        logging.info(
+            "You can visit the new collection (%s) at: %s"
+            % (args.dst_collection_name, conn.get_app_url("fc", new_collection_uid))
+        )
 
     src_fields = [
         f
@@ -54,12 +62,5 @@ if __name__ == "__main__":
     schema = generate_schema(src_doc_schema)
     field_specs = [f.field_type.build_field_spec(f.name, f.path) for f in schema]
 
-    logging.info("Creating collection '%s'...", args.dst_collection_name)
-    new_collection_uid = conn.create_collection(args.dst_collection_name)
-    print(
-        "You can visit the new collection (%s) at: %s"
-        % (args.dst_collection_name, conn.get_app_url("fc", new_collection_uid))
-    )
-
     logging.info("Creating %d fields...", len(field_specs))
-    conn.create_fields(new_collection_uid, field_specs)
+    conn.create_fields(dst_collection_uid, field_specs)
