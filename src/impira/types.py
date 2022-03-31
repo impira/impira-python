@@ -80,7 +80,7 @@ class TimestampLabel(ScalarLabel):
 
     # TODO: support more timestamp formatting options
     def fmt(self):
-        return fmt.american_date(self.value) if self.value is not None else ""
+        return fmt.unambiguous_date(self.value) if self.value is not None else ""
 
 
 class CheckboxLabel(ScalarLabel):
