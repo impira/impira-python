@@ -98,7 +98,7 @@ def escape(input: str):
     return "`{}`".format(input)
 
 
-def _prepare_train_input_field_query(api: impira.Impira, org_id: int, collection_id: str, trainer: str, gz: bool):
+def _prepare_train_input_field_query(api: impira.Impira, org_id: int, collection_id: str, trainer: str, gz: bool, no_join: bool):
     field_info = _get_field_info_with_trainer(api, collection_id, trainer)
     storage_ec = "forge::{}::{}".format(org_id, field_info["ec_id"])
     storage_name = "f%d" % field_info["id"]
@@ -109,6 +109,11 @@ def _prepare_train_input_field_query(api: impira.Impira, org_id: int, collection
     if gz:
         field_heap = "{}::fixed_schema_normalized::stitched::{}".format(
             storage_ec, storage_name)
+
+        if no_join:
+            query = "@{}[{}]".format(escape(field_heap), escape(field_name))
+            return [api, query]
+
         join = "{0}: join_one({1}, uid, uid).{0}".format(
             escape(field_name), field_heap)
         projections.append(join)
@@ -118,6 +123,10 @@ def _prepare_train_input_field_query(api: impira.Impira, org_id: int, collection
         field_heap = "{}::fields::{}".format(storage_ec, storage_name)
         if trainer == TABLE_TRAINER:
             field_heap += "::stitched"
+
+        if no_join:
+            query = "@{}[{}.raw_user_tag_v2]".format(escape(field_heap), escape(storage_name))
+            return [api, query]
 
         join = "{0}: join_one({1}, uid, uid).{0}[raw_user_tag_v2]".format(
             storage_name, field_heap)
@@ -137,13 +146,13 @@ def train_input_text_field_query(api: impira.Impira, query: str):
 
 
 def benchmark_function(function, prepare_fn, num_runs, args):
+    # Prepare arguments before timing the function
+    arguments = args
+    if prepare_fn != None:
+        arguments = prepare_fn(*args)
+
     total_time = 0
     for _ in range(num_runs):
-        # Prepare arguments before timing the function
-        arguments = args
-        if prepare_fn != None:
-            arguments = prepare_fn(*args)
-
         start = time.time()
         function(*arguments)
         end = time.time()
@@ -237,14 +246,26 @@ if __name__ == "__main__":
             "name": "Train Input Text Field Query",
             "prepare_fn": _prepare_train_input_field_query,
             "function": train_input_text_field_query,
-            "args": [impira_api, args.org_id, collection_id, TEXT_TRAINER, args.gz]
+            "args": [impira_api, args.org_id, collection_id, TEXT_TRAINER, args.gz, False]
         },
+        # {
+        #     "name": "Train Input Text Field Query (No Join)",
+        #     "prepare_fn": _prepare_train_input_field_query,
+        #     "function": train_input_text_field_query,
+        #     "args": [impira_api, args.org_id, collection_id, TEXT_TRAINER, args.gz, True]
+        # },
         {
             "name": "Train Input Table Field Query",
             "prepare_fn": _prepare_train_input_field_query,
             "function": train_input_text_field_query,
-            "args": [impira_api, args.org_id, collection_id, TABLE_TRAINER, args.gz]
-        }
+            "args": [impira_api, args.org_id, collection_id, TABLE_TRAINER, args.gz, False]
+        },
+        # {
+        #     "name": "Train Input Table Field Query (No Join)",
+        #     "prepare_fn": _prepare_train_input_field_query,
+        #     "function": train_input_text_field_query,
+        #     "args": [impira_api, args.org_id, collection_id, TABLE_TRAINER, args.gz, True]
+        # }
     ]
 
     for benchmark in benchmarks:
