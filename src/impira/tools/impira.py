@@ -265,7 +265,7 @@ def generate_labels(
                     value.value,
                 )
                 scalar_label = ScalarLabel(
-                    Label=ScalarLabel.L(Value=value.fmt(), Source=[]),
+                    Label=ScalarLabel.L(Value=value.u_fmt(), Source=[]),
                     Context=ScalarLabel.C(Entities=entities),
                     IsPrediction=False,
                     ModelVersion=model_versions.get(field_name, 0),

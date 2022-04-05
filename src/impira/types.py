@@ -55,6 +55,8 @@ class ScalarLabel(BaseModel):
     def fmt(self):
         return self.value
 
+    def u_fmt(self):
+        return self.fmt()
 
 class NumberLabel(ScalarLabel):
     value: Optional[Union[StrictInt, StrictFloat, float]]
@@ -64,7 +66,6 @@ class NumberLabel(ScalarLabel):
             return None
         else:
             return str(self.value)
-
 
 class TextLabel(ScalarLabel):
     value: Optional[str]
@@ -80,6 +81,9 @@ class TimestampLabel(ScalarLabel):
 
     # TODO: support more timestamp formatting options
     def fmt(self):
+        return fmt.american_date(self.value) if self.value is not None else ""
+
+    def u_fmt(self):
         return fmt.unambiguous_date(self.value) if self.value is not None else ""
 
 
