@@ -2,7 +2,7 @@
 
 ## Requirements
 
-* Python >= 3.8
+* [Python >= 3.8](https://www.python.org/downloads/)
 * Mac OS X or Linux
 
 * [soffice](https://www.systutorials.com/docs/linux/man/1-soffice/) (LibreOffice's command line tools) if you are using `impira generate`
