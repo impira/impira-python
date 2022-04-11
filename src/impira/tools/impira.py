@@ -286,6 +286,12 @@ DATA_PROJECTION = "[uid, name: File.name, text: File.text, entities: File.ner.en
 
 
 def upload_and_retrieve_text(conn, collection_uid, f):
+    existing = conn.query(
+        "@`file_collections::%s`%s name='%s' File.IsPreprocessed=true" % (collection_uid, DATA_PROJECTION, f["name"]),
+    )["data"]
+    if len(existing) > 0:
+        return existing[0]
+
     uids = conn.upload_files(collection_uid, [f])
     assert len(uids) == 1
     for i in range(10):
