@@ -15,7 +15,6 @@ from pydantic import BaseModel, validate_arguments
 import logging
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--org-name", type=str, default=None, required=True)
     parser.add_argument("--api-token", type=str, default=None, required=True)
