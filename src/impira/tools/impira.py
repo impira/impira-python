@@ -364,7 +364,7 @@ def row_to_record(row, doc_schema: DocSchema) -> Any:
     d = {}
     for field_name, field_type in doc_schema.fields.items():
         label = None
-        value = row[field_name]
+        value = row.get(field_name, None)
         if isinstance(field_type, DocSchema):
             table_rows = [row_label["Label"]["Value"] for row_label in value["Label"]["Value"]]
             label = [x for x in [row_to_record(tr, field_type) for tr in table_rows] if x is not None]

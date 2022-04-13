@@ -56,7 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("s3_path", type=str)
 
     args = parser.parse_args()
-    conn = impira.Impira(org_name=args.org_name, api_token=args.api_token, base_url="http://localhost:3000")
+    conn = impira.Impira(org_name=args.org_name, api_token=args.api_token)
 
     collection_id = None
     if args.collection_name is not None:
