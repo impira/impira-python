@@ -60,15 +60,15 @@ if __name__ == "__main__":
 
     collection_id = None
     if args.collection_name is not None:
-        collections = conn.query('@file_collections[uid] name="%s"' % (args.src_collection_name))["data"]
+        collections = conn.query('@file_collections[uid] name="%s"' % (args.collection_name))["data"]
         if len(collections) == 0:
-            logging.fatal("Could not find collection named '%s'", args.src_collection_name)
+            logging.fatal("Could not find collection named '%s'", args.collection_name)
             exit(1)
         if len(collections) > 1:
-            logging.fatal("Multiple collections named '%s'", args.src_collection_name)
+            logging.fatal("Multiple collections named '%s'", args.collection_name)
             exit(1)
 
-        collection_id = collections[0].uid
+        collection_id = collections[0]["uid"]
 
     url = urlparse(args.s3_path)
 
