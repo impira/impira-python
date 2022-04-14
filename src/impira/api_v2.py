@@ -300,18 +300,13 @@ class Impira:
                 if f.uid is not None:
                     raise InvalidRequest("Unsupported: specifying a UID in a multi-part file upload (%s)" % (f.uid))
 
-            files_body = [
-                t
-                for f in files
-                for t in [
-                    ("file", open(f.path, "rb")),
-                    ("data", json.dumps(_build_file_object(f.name, None, f.uid))),
-                ]
-            ]
+            files_body = [("file", open(f.path, "rb")) for f in files]
+            data_body = [("data", json.dumps(_build_file_object(f.name, None, f.uid))) for f in files]
             resp = requests.post(
                 self._build_collection_url(collection_id, use_async=True),
                 headers=self.headers,
                 files=tuple(files_body),
+                data=tuple(data_body),
             )
             if resp.status_code == 429:
                 logging.warning("Sleeping for 2 seconds and then retrying multi-part upload...")
@@ -323,18 +318,6 @@ class Impira:
 
     @validate_arguments
     def _upload_url(self, collection_id: Optional[str], files: List[FilePath]):
-        resp = requests.post(
-            self._build_collection_url(collection_id, use_async=True),
-            headers=self.headers,
-            json={"data": [_build_file_object(f.name, f.path, f.uid) for f in files]},
-        )
-        if not resp.ok:
-            raise APIError(resp)
-
-        return resp.json()["uids"]
-
-    @validate_arguments
-    def _upload_url_collection_name(self, collection_name: str, files: List[FilePath]):
         resp = requests.post(
             self._build_collection_url(collection_id, use_async=True),
             headers=self.headers,
