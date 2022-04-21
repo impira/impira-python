@@ -25,15 +25,10 @@ if __name__ == "__main__":
 
     conn = impira.Impira(org_name=args.org_name, api_token=args.api_token)
 
-    collections = conn.query('@file_collections name="%s"' % (args.src_collection_name))["data"]
-    if len(collections) == 0:
+    src_collection_uid = conn.get_collection_uid(args.src_collection_name)
+    if src_collection_uid is None:
         logging.fatal("Could not find collection named '%s'", args.src_collection_name)
         exit(1)
-    if len(collections) > 1:
-        logging.fatal("Multiple collections named '%s'", args.src_collection_name)
-        exit(1)
-
-    src_ec = collections[0]["field_ec"]
 
     if len(conn.query('@file_collections name="%s"' % (args.dst_collection_name))["data"]) != 0:
         logging.warning(
@@ -49,17 +44,6 @@ if __name__ == "__main__":
             % (args.dst_collection_name, conn.get_app_url("fc", dst_collection_uid))
         )
 
-    src_fields = [
-        f
-        for f in conn.query("@`%s` limit:0" % (src_ec))["schema"]["children"]
-        if f["name"] not in ("File", "__system", "uid")
-        and "comment" in f
-        and json.loads(f["comment"])["entity_class"] == src_ec
-    ]
-
-    src_doc_schema = fields_to_doc_schema(filter_inferred_fields(src_fields))
-    schema = generate_schema(src_doc_schema)
-    field_specs = [f.field_type.build_field_spec(f.name, f.path) for f in schema]
-
-    logging.info("Creating %d fields...", len(field_specs))
-    conn.create_fields(dst_collection_uid, field_specs)
+    logging.info("Importing fields...")
+    conn.import_fields(dst_collection_uid, src_collection_uid)
+    logging.info("Done!")

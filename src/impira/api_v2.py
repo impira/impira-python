@@ -233,6 +233,27 @@ class Impira:
         return self.create_field(collection_id, field_spec)
 
     @validate_arguments
+    def import_fields(
+        self,
+        collection_id: str,
+        from_collection_id: str,
+    ):
+        resp = requests.post(
+            urljoin(
+                self.api_url,
+                "schema",
+                "ecs",
+                "file_collections::" + collection_id,
+                "importfields",
+                "file_collections::" + from_collection_id,
+            ),
+            headers=self.headers,
+        )
+
+        if not resp.ok:
+            raise APIError(resp)
+
+    @validate_arguments
     def poll_for_results(self, collection_id: str, uids: List[str] = None):
         uid_filter = "and in(uid, %s)" % (", ".join(['"%s"' % u for u in uids])) if uids else ""
         query = """
