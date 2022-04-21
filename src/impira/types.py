@@ -58,14 +58,10 @@ class ScalarLabel(BaseModel):
     def u_fmt(self):
         return self.fmt()
 
+
 class NumberLabel(ScalarLabel):
     value: Optional[Union[StrictInt, StrictFloat, float]]
 
-    def fmt(self):
-        if self.value is None:
-            return None
-        else:
-            return str(self.value)
 
 class TextLabel(ScalarLabel):
     value: Optional[str]
@@ -89,6 +85,12 @@ class TimestampLabel(ScalarLabel):
 
 class CheckboxLabel(ScalarLabel):
     value: Optional[bool]
+
+    def fmt(self):
+        return "\u2717" if self.value else ""
+
+    def u_fmt(self):
+        return "true" if self.value else "false"
 
 
 class SignatureLabel(ScalarLabel):
