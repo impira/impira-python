@@ -254,6 +254,14 @@ class Impira:
             raise APIError(resp)
 
     @validate_arguments
+    def rename_file(self, uid: str, data):
+        return self._set_field_path("files", uid, ["File", "name"], data)
+
+    @validate_arguments
+    def set_table_cell(self, collection_id: str, uid: str, table_name: str, path: List[str], data):
+        return self._set_field_path("file_collections::" + collection_id, uid, [table_name] + path, data)
+
+    @validate_arguments
     def poll_for_results(self, collection_id: str, uids: List[str] = None):
         uid_filter = "and in(uid, %s)" % (", ".join(['"%s"' % u for u in uids])) if uids else ""
         query = """
@@ -344,6 +352,19 @@ class Impira:
             headers=self.headers,
             json={"data": [_build_file_object(f.name, f.path, f.uid) for f in files]},
         )
+        if not resp.ok:
+            raise APIError(resp)
+
+        return resp.json()["uids"]
+
+    @validate_arguments
+    def _set_field_path(self, entity_class: str, uid: str, path: List[str], data):
+        resp = requests.post(
+            urljoin(self.api_url, "data", entity_class, uid, *[quote_plus(segment) for segment in path]),
+            headers=self.headers,
+            json={"data": data}
+        )
+
         if not resp.ok:
             raise APIError(resp)
 
