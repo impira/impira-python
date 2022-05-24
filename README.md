@@ -10,7 +10,7 @@ Below is an abbreviated set of documentation to help you get started. You can vi
 
 ## Requirements
 
-This SDK is tested with Python 3.8+ on Mac OS X and Linux systems. We have users using Windows as well; however, this scenario is not tested automatically. Please reach out if you run into any issues on Windows or another platform.
+This SDK is tested with Python 3.7.4+ on Mac OS X and Linux systems. We have users using Windows as well; however, this scenario is not tested automatically. Please reach out if you run into any issues on Windows or another platform.
 
 ## Installation
 
@@ -66,7 +66,7 @@ To upload one or more files, you must provide at a minimum a name and path (eith
 uids = impira_api.upload_files(collection_id, [
     {"name": "foo.pdf", "path": "/Users/me/Desktop/foo.pdf"}
 ])
-                                             
+
 # Upload multiple files by specifying their URLs
 uids = impira_api.upload_files(collection_id, [
     {"name": "foo.pdf", "path": "http://website.com/foo.pdf"},
@@ -104,7 +104,7 @@ will retrieve the `uid` of each of the last 10 files uploaded to the collection.
 
 ## Examples
 
-The examples directory contains end-to-end working examples for how to use the SDK. 
+The examples directory contains end-to-end working examples for how to use the SDK.
 * `upload_files.py` walks through uploading a file, either locally or through a URL, and then waiting for its results.
 * `download_all_collections_query.py` creates an IQL query that queries all data across all collections
 

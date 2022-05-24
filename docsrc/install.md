@@ -2,7 +2,7 @@
 
 ## Requirements
 
-* [Python >= 3.8](https://www.python.org/downloads/)
+* [Python >= 3.7.4](https://www.python.org/downloads/)
 * Mac OS X or Linux
 
 * [soffice](https://www.systutorials.com/docs/linux/man/1-soffice/) (LibreOffice's command line tools) if you are using `impira generate`
@@ -32,13 +32,13 @@ Textract is required to operate the Impira API. In the future, this dependency m
 ## Setting up the Impira API
 
 To use Impira, you need to know your organization's name and obtain an API token. You can find your organization's
-name in the URL you visit to access Impira. For example, when you login, if the URL is 
+name in the URL you visit to access Impira. For example, when you login, if the URL is
 `https://app.impira.com/o/acme-corp-1a23/collections`, then your organization's name is `acme-corp-1a23`.
-For instructions on obtaining an API token, please visit the 
+For instructions on obtaining an API token, please visit the
 [Impira docs](https://www.impira.com/documentation/impira-read-api#toc-creating-an-api-token).
 
-Many commands throughout the Impira CLI reference a `--collection` parameter. This collection id can be found by navigating to a 
-collection in the application, and copying the identifier after `fc`. For example, for a collection at a 
+Many commands throughout the Impira CLI reference a `--collection` parameter. This collection id can be found by navigating to a
+collection in the application, and copying the identifier after `fc`. For example, for a collection at a
 URL like `https://app.impira.com/o/acme-corp-1a23/fc/07b71143a26b7163`, the collection's id is `07b71143a26b7163`.
 
 ## Developing
