@@ -22,6 +22,7 @@ from ..types import (
     NumberLabel,
     TextLabel,
     TimestampLabel,
+    DocumentTagLabel,
 )
 from ..utils import batch
 from .tool import Tool
@@ -45,6 +46,8 @@ def label_name_to_inferred_field_type(label_name: str) -> InferredFieldType:
         return InferredFieldType.checkbox
     elif label_name == "SignatureLabel":
         return InferredFieldType.signature
+    elif label_name == "DocumentTagLabel":
+        return InferredFieldType.document_tag
     else:
         assert False, "Unknown field label name: %s" % (label_name)
 
@@ -282,12 +285,17 @@ def generate_labels(
     return labels
 
 
-DATA_PROJECTION = "[uid, name: File.name, text: File.text, entities: File.ner.entities]"
+def data_projection(skip_downloading_text):
+    if skip_downloading_text:
+        return "[uid, name: File.name, text: {words: build_array()}, entities: build_array()]"
+    else:
+        return "[uid, name: File.name, text: File.text, entities: File.ner.entities]"
 
 
-def upload_and_retrieve_text(conn, collection_uid, f):
+def upload_and_retrieve_text(conn, collection_uid, f, skip_downloading_text):
     existing = conn.query(
-        "@`file_collections::%s`%s name='%s' File.IsPreprocessed=true" % (collection_uid, DATA_PROJECTION, f["name"]),
+        "@`file_collections::%s`%s name='%s' File.IsPreprocessed=true"
+        % (collection_uid, data_projection(skip_downloading_text), f["name"]),
     )["data"]
     if len(existing) > 0:
         return existing[0]
@@ -298,7 +306,7 @@ def upload_and_retrieve_text(conn, collection_uid, f):
         while True:
             resp = conn.query(
                 "@`file_collections::%s`%s uid='%s' File.IsPreprocessed=true"
-                % (collection_uid, DATA_PROJECTION, uids[0]),
+                % (collection_uid, data_projection(skip_downloading_text), uids[0]),
                 mode="poll",
                 timeout=60,
             )
@@ -448,6 +456,8 @@ class Impira(Tool):
 
         schema = generate_schema(doc_schema)
 
+        skip_downloading_text = all([t == "DocumentTagLabel" for t in doc_schema.fields.values()])
+
         conn = self._conn()
 
         if existing_collection_uid is None:
@@ -482,7 +492,7 @@ class Impira(Tool):
                 file_data = [
                     x
                     for x in t.map(
-                        lambda f: upload_and_retrieve_text(conn, collection_uid, f),
+                        lambda f: upload_and_retrieve_text(conn, collection_uid, f, skip_downloading_text),
                         files,
                     )
                 ]
@@ -490,7 +500,9 @@ class Impira(Tool):
             while True:
                 uids = {
                     r["name"]: r
-                    for r in conn.query("@`file_collections::%s`%s" % (collection_uid, DATA_PROJECTION))["data"]
+                    for r in conn.query(
+                        "@`file_collections::%s`%s" % (collection_uid, data_projection(skip_downloading_text))
+                    )["data"]
                 }
 
                 if add_files:
@@ -720,6 +732,62 @@ class Impira(Tool):
 
         if labeled_files_only:
             records = [r for r in records if r["record"] is not None]
+
+        assert len(records) == len(set([r["name"] for r in records])), "Expected each filename to be unique"
+
+        return doc_schema, records
+
+    @validate_arguments
+    def snapshot_collections(self, use_original_filenames=False):
+        log = self._log()
+
+        conn = self._conn()
+        files = conn.query("@files[uid, File: File[download_url, name]] -`File type`=Data")["data"]
+        collections = conn.query(
+            "@file_collection_contents[collection_uid, files: array_agg(file_uid)] -collection=null"
+        )["data"]
+
+        collection_names = {}
+        for row in conn.query("@file_collection_contents[collection_uid, name: collection.name] -collection=null")[
+            "data"
+        ]:
+            collection_names[row["collection_uid"]] = row["name"]
+
+        file_membership = {}
+        for c in collections:
+            for f in c["files"]:
+                if f not in file_membership:
+                    file_membership[f] = []
+                file_membership[f].append(c["collection_uid"])
+
+        sampled = {}
+        # For each collection, pick up to two files that belong to that collection
+        for c in collections:
+            for f in [f for f in c["files"] if len(file_membership[f]) == 1][:2]:
+                sampled[f] = c["collection_uid"]
+
+        doc_schema = DocSchema(
+            fields={
+                "Doc tag": DocumentTagLabel.__name__,
+                "Sampled tag": DocumentTagLabel.__name__,
+            }
+        )
+
+        records = [
+            {
+                "url": row["File"]["download_url"],
+                "name": row_to_fname(row, use_original_filenames),
+                "record": {
+                    "Doc tag": DocumentTagLabel(value=collection_names[file_membership[row["uid"]][0]])
+                    if row["uid"] in file_membership and len(file_membership[row["uid"]]) == 1
+                    else None,
+                    "Sampled tag": DocumentTagLabel(value=collection_names[sampled[row["uid"]]])
+                    if row["uid"] in sampled
+                    else None,
+                },
+            }
+            for row in files
+        ]
 
         assert len(records) == len(set([r["name"] for r in records])), "Expected each filename to be unique"
 

@@ -42,6 +42,7 @@ class InferredFieldType(Enum):
         "type": "ENTITY",
         "isList": True,
     }
+    document_tag = {"expression": "document_tag(File)", "type": "STRING"}
 
     @property
     def expr(self):

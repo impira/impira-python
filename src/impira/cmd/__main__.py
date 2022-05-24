@@ -6,6 +6,7 @@ import sys
 from . import bootstrap
 from . import capture
 from . import snapshot
+from . import snapshot_collections
 
 
 def main(args=None):
@@ -15,18 +16,12 @@ def main(args=None):
 
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument("--verbose", "-v", default=False, action="store_true")
-    parent_parser.add_argument(
-        "--parallelism", default=multiprocessing.cpu_count(), type=int
-    )
+    parent_parser.add_argument("--parallelism", default=multiprocessing.cpu_count(), type=int)
 
-    parser = argparse.ArgumentParser(
-        description="impira is a CLI tool to work with Impira."
-    )
-    subparsers = parser.add_subparsers(
-        help="sub-command help", dest="subcommand", required=True
-    )
+    parser = argparse.ArgumentParser(description="impira is a CLI tool to work with Impira.")
+    subparsers = parser.add_subparsers(help="sub-command help", dest="subcommand", required=True)
 
-    for module in [capture, snapshot, bootstrap]:
+    for module in [capture, snapshot, bootstrap, snapshot_collections]:
         cmd_parser = module.build_parser(subparsers, parent_parser)
 
     args = parser.parse_args()

@@ -67,6 +67,10 @@ class TextLabel(ScalarLabel):
     value: Optional[str]
 
 
+class DocumentTagLabel(ScalarLabel):
+    value: Optional[str]
+
+
 class TimestampLabel(ScalarLabel):
     value: Optional[datetime]
 
