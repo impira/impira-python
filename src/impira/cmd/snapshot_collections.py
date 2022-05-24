@@ -33,6 +33,13 @@ def build_parser(subparsers, parent_parser):
     )
 
     parser.add_argument(
+        "--max-files-per-collection",
+        type=int,
+        default=50,
+        help="The maximum number of files per collection to snapshot. Set to -1 to snapshot all of them.",
+    )
+
+    parser.add_argument(
         "--original-names",
         default=False,
         action="store_true",
@@ -49,6 +56,7 @@ def main(args):
 
     doc_schema, records = impira.snapshot_collections(
         use_original_filenames=args.original_names,
+        max_files_per_collection=args.max_files_per_collection,
     )
 
     log.info("Downloading %d files to %s", len(records), workdir)

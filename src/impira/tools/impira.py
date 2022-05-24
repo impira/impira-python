@@ -349,7 +349,6 @@ def fields_to_doc_schema(fields) -> DocSchema:
             path = ["Label", "Value"]
             if trainer in (InferredFieldType.checkbox, InferredFieldType.signature):
                 path.append("Value")
-                
 
             scalar_type = find_path(f, *path)["fieldType"]
             if trainer == InferredFieldType.document_tag:
@@ -412,7 +411,7 @@ def row_to_fname(row, use_original_filename) -> str:
         return row["File"]["name"]
     else:
         fname, ext = row["File"]["name"].rsplit(".", 1)
-        return fname + "-" + row["uid"] + "." + ext
+        return (fname + "-" + row["uid"] + "." + ext).replace("/", "_")
 
 
 class Impira(Tool):
@@ -741,7 +740,7 @@ class Impira(Tool):
         return doc_schema, records
 
     @validate_arguments
-    def snapshot_collections(self, use_original_filenames=False):
+    def snapshot_collections(self, use_original_filenames=False, max_files_per_collection=-1):
         log = self._log()
 
         conn = self._conn()
@@ -758,7 +757,8 @@ class Impira(Tool):
 
         file_membership = {}
         for c in collections:
-            for f in c["files"]:
+            collection = c["files"] if max_files_per_collection < 0 else c["files"][:max_files_per_collection]
+            for f in collection:
                 if f not in file_membership:
                     file_membership[f] = []
                 file_membership[f].append(c["collection_uid"])
@@ -766,7 +766,7 @@ class Impira(Tool):
         sampled = {}
         # For each collection, pick up to two files that belong to that collection
         for c in collections:
-            for f in [f for f in c["files"] if len(file_membership[f]) == 1][:2]:
+            for f in [f for f in c["files"] if f in file_membership and len(file_membership[f]) == 1][:2]:
                 sampled[f] = c["collection_uid"]
 
         doc_schema = DocSchema(
@@ -783,7 +783,8 @@ class Impira(Tool):
                 "record": {
                     "Doc tag": DocumentTagLabel(value=collection_names[file_membership[row["uid"]][0]])
                     if row["uid"] in file_membership and len(file_membership[row["uid"]]) == 1
-                    else DocumentTagLabel(value=None) if row["uid"] not in file_membership 
+                    else DocumentTagLabel(value=None)
+                    if row["uid"] not in file_membership
                     else None,
                     "Sampled tag": DocumentTagLabel(value=collection_names[sampled[row["uid"]]])
                     if row["uid"] in sampled
@@ -791,6 +792,7 @@ class Impira(Tool):
                 },
             }
             for row in files
+            if row["uid"] in file_membership
         ]
 
         assert len(records) == len(set([r["name"] for r in records])), "Expected each filename to be unique"
