@@ -349,9 +349,12 @@ def fields_to_doc_schema(fields) -> DocSchema:
             path = ["Label", "Value"]
             if trainer in (InferredFieldType.checkbox, InferredFieldType.signature):
                 path.append("Value")
+                
 
             scalar_type = find_path(f, *path)["fieldType"]
-            if scalar_type == FieldType.text:
+            if trainer == InferredFieldType.document_tag:
+                t = DocumentTagLabel.__name__
+            elif scalar_type == FieldType.text:
                 t = TextLabel.__name__
             elif scalar_type == FieldType.number:
                 t = NumberLabel.__name__
