@@ -780,6 +780,7 @@ class Impira(Tool):
                 "record": {
                     "Doc tag": DocumentTagLabel(value=collection_names[file_membership[row["uid"]][0]])
                     if row["uid"] in file_membership and len(file_membership[row["uid"]]) == 1
+                    else DocumentTagLabel(value=None) if row["uid"] not in file_membership 
                     else None,
                     "Sampled tag": DocumentTagLabel(value=collection_names[sampled[row["uid"]]])
                     if row["uid"] in sampled
