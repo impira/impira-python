@@ -11,6 +11,20 @@ with open(os.path.join(dir_name, "src", "impira", "version.py"), encoding="utf-8
 with open(os.path.join(dir_name, "README.md"), "r", encoding="utf-8") as f:
     long_description = f.read()
 
+install_requires = [
+    "pydantic",
+    "requests",
+    # TODO: Make these optional (with an extension?)
+    "boto3",
+    "textract-trp",
+    # TODO: Make these optional (or only a doc branch?)
+    "myst-parser >= 0.15",
+    "sphinx >= 4.3",
+]
+if sys.version_info.major == 3 and sys.version_info.minor < 7:
+    install_requires.append("typing")
+
+
 setuptools.setup(
     name="impira",
     version=version_contents["VERSION"],
@@ -34,17 +48,5 @@ setuptools.setup(
     entry_points={
         "console_scripts": ["impira = impira.cmd.__main__:main"],
     },
-    install_requires=[
-        "pydantic",
-        "requests",
-        # TODO: Make these optional (with an extension?)
-        "boto3",
-        "textract-trp",
-        # TODO: Make these optional (or only a doc branch?)
-        "myst-parser >= 0.15",
-        "sphinx >= 4.3",
-    ]
-    + ["typing"]
-    if sys.version_info.major == 3 and sys.version_info.minor < 7
-    else [],
+    install_requires=install_requires,
 )
