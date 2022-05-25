@@ -46,6 +46,13 @@ def build_parser(subparsers, parent_parser):
         help="Use original filenames (without concatenating a uid). This will fail if two files in the collection have the same name",
     )
 
+    parser.add_argument(
+        "--samples-per-collection",
+        type=int,
+        default=2,
+        help="The number of confirmed document tag labels that get created from each collection.",
+    )
+
     parser.set_defaults(func=main)
     return parser
 
@@ -57,6 +64,7 @@ def main(args):
     doc_schema, records = impira.snapshot_collections(
         use_original_filenames=args.original_names,
         max_files_per_collection=args.max_files_per_collection,
+        num_samples=args.samples_per_collection,
     )
 
     log.info("Downloading %d files to %s", len(records), workdir)

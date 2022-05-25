@@ -740,7 +740,7 @@ class Impira(Tool):
         return doc_schema, records
 
     @validate_arguments
-    def snapshot_collections(self, use_original_filenames=False, max_files_per_collection=-1):
+    def snapshot_collections(self, use_original_filenames=False, max_files_per_collection=-1, num_samples=2):
         log = self._log()
 
         conn = self._conn()
@@ -766,7 +766,16 @@ class Impira(Tool):
         sampled = {}
         # For each collection, pick up to two files that belong to that collection
         for c in collections:
-            for f in [f for f in c["files"] if f in file_membership and len(file_membership[f]) == 1][:2]:
+            valid_files = [f for f in c["files"] if f in file_membership and len(file_membership[f]) == 1]
+            if num_samples > len(valid_files):
+                log.warning(
+                    f"The collection {c['collection_uid']} has fewer files than the requested number of samples "
+                    f"({len(valid_files)} < {num_samples}), so sampling all files in the collection. It's "
+                    "recommended that you either lower the number of samples or add more files to the collection."
+                )
+
+            num_samples_ = min(len(valid_files), num_samples)
+            for f in valid_files[:num_samples_]:
                 sampled[f] = c["collection_uid"]
 
         doc_schema = DocSchema(
