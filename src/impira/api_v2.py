@@ -4,6 +4,8 @@ import json
 import logging
 from pydantic import BaseModel, Field, validate_arguments
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus, urlparse
@@ -102,7 +104,14 @@ class Impira:
     def __init__(self, org_name, api_token, base_url="https://app.impira.com", ping=True):
         self.org_url = urljoin(base_url, "o", org_name)
         self.api_url = urljoin(self.org_url, "api/v2")
-        self.headers = {"X-Access-Token": api_token}
+        self.session = requests.Session()
+        self.session.headers.update({"X-Access-Token": api_token})
+
+        # Following a suggestion in https://stackoverflow.com/questions/23013220/max-retries-exceeded-with-url-in-requests
+        retry = Retry(connect=10, backoff_factor=0.5)
+        adapter = HTTPAdapter(max_retries=retry)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
         if ping:
             try:
@@ -138,9 +147,8 @@ class Impira:
 
     @validate_arguments
     def update(self, collection_id: str, data: List[Dict[str, Any]]):
-        resp = requests.patch(
+        resp = self.session.patch(
             self._build_resource_url("fc", collection_id),
-            headers=self.headers,
             json={"data": data},
         )
 
@@ -151,9 +159,8 @@ class Impira:
 
     @validate_arguments
     def add_files_to_collection(self, collection_id: str, file_ids: List[str]):
-        resp = requests.post(
+        resp = self.session.post(
             self._build_resource_url("ec", "file_collection_contents"),
-            headers=self.headers,
             json={"data": [{"file_uid": u, "collection_uid": collection_id} for u in file_ids]},
         )
 
@@ -174,9 +181,8 @@ class Impira:
             )
 
         # Create collection is implemented as an empty insert
-        resp = requests.post(
+        resp = self.session.post(
             self._build_resource_url("collection", collection_name),
-            headers=self.headers,
             json={"data": []},
         )
 
@@ -192,9 +198,8 @@ class Impira:
 
     @validate_arguments
     def delete_field(self, collection_id: str, field_name: str):
-        resp = requests.delete(
+        resp = self.session.delete(
             urljoin(self.api_url, "schema/ecs/file_collections::%s/fields/%s" % (collection_id, field_name)),
-            headers=self.headers,
         )
 
         if not resp.ok:
@@ -202,9 +207,8 @@ class Impira:
 
     @validate_arguments
     def create_field(self, collection_id: str, field_spec: FieldSpec):
-        resp = requests.post(
+        resp = self.session.post(
             urljoin(self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)),
-            headers=self.headers,
             json=dict(field_spec),
         )
 
@@ -213,9 +217,8 @@ class Impira:
 
     @validate_arguments
     def create_fields(self, collection_id: str, field_specs: List[FieldSpec]):
-        resp = requests.post(
+        resp = self.session.post(
             urljoin(self.api_url, "schema/ecs/file_collections::%s/fields" % (collection_id)),
-            headers=self.headers,
             json=[dict(field_spec) for field_spec in field_specs],
         )
 
@@ -239,7 +242,7 @@ class Impira:
         collection_id: str,
         from_collection_id: str,
     ):
-        resp = requests.post(
+        resp = self.session.post(
             urljoin(
                 self.api_url,
                 "schema",
@@ -248,7 +251,6 @@ class Impira:
                 "importfields",
                 "file_collections::" + from_collection_id,
             ),
-            headers=self.headers,
         )
 
         if not resp.ok:
@@ -306,9 +308,8 @@ class Impira:
         if timeout is not None:
             args["timeout"] = timeout
 
-        resp = requests.post(
+        resp = self.session.post(
             urljoin(self.api_url, mode),
-            headers=self.headers,
             json=args,
         )
         if not resp.ok:
@@ -332,9 +333,8 @@ class Impira:
 
             files_body = [("file", open(f.path, "rb")) for f in files]
             data_body = [("data", json.dumps(_build_file_object(f.name, None, f.uid))) for f in files]
-            resp = requests.post(
+            resp = self.session.post(
                 self._build_collection_url(collection_id, use_async=True),
-                headers=self.headers,
                 files=tuple(files_body),
                 data=tuple(data_body),
             )
@@ -348,9 +348,8 @@ class Impira:
 
     @validate_arguments
     def _upload_url(self, collection_id: Optional[str], files: List[FilePath]):
-        resp = requests.post(
+        resp = self.session.post(
             self._build_collection_url(collection_id, use_async=True),
-            headers=self.headers,
             json={"data": [_build_file_object(f.name, f.path, f.uid) for f in files]},
         )
         if not resp.ok:
@@ -360,10 +359,9 @@ class Impira:
 
     @validate_arguments
     def _set_field_path(self, entity_class: str, uid: str, path: List[str], data):
-        resp = requests.post(
+        resp = self.session.post(
             urljoin(self.api_url, "data", entity_class, uid, *[quote_plus(segment) for segment in path]),
-            headers=self.headers,
-            json={"data": data}
+            json={"data": data},
         )
 
         if not resp.ok:

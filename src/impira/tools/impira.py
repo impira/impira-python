@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import time
 from uuid import uuid4
 
-from impira import Impira as ImpiraAPI, FieldType, InferredFieldType, parse_date
+from impira import Impira as ImpiraAPI, FieldType, InferredFieldType, parse_date, APIError
 
 from ..cmd.utils import environ_or_required
 from ..schema import schema_to_model
@@ -494,7 +494,7 @@ class Impira(Tool):
                 file_data = [
                     x
                     for x in t.map(
-                        lambda f: upload_and_retrieve_text(conn, collection_uid, f, skip_downloading_text),
+                        lambda f: upload_and_retrieve_text(self._conn(), collection_uid, f, skip_downloading_text),
                         files,
                     )
                 ]
@@ -677,20 +677,32 @@ class Impira(Tool):
         )
 
         log.info("Running update on %d files" % len(labeled_files))
-        conn.update(
-            collection_uid,
-            [
-                {
-                    **{"uid": fd["uid"]},
-                    **{
-                        field_path: label.dict(exclude_none=True)
-                        for field_path, label in ld.items()
-                        if field_path in field_names_to_update
-                    },
-                }
-                for (fd, ld) in zip(labeled_files, labels)
-            ],
-        )
+
+        # Batch the updates into chunks of 200, and retry a few times because of deadlock-issues
+        for b in batch([x for x in zip(labeled_files, labels)], n=200):
+            for i in range(10):
+                if i > 0:
+                    log.warning("Sleeping for 1 second...")
+                    time.sleep(1)
+                try:
+                    conn.update(
+                        collection_uid,
+                        [
+                            {
+                                **{"uid": fd["uid"]},
+                                **{
+                                    field_path: label.dict(exclude_none=True)
+                                    for field_path, label in ld.items()
+                                    if field_path in field_names_to_update
+                                },
+                            }
+                            for (fd, ld) in b
+                        ],
+                    )
+                    break
+                except APIError as e:
+                    log.warning("Failed to update. Will retry up to %d more times" % (10 - i - 1))
+
         log.info("Done running update on %d files. Models will now update!" % len(labeled_files))
 
         # This code is currently too brittle to be useful, since model versions aren't a reliable way of knowing
