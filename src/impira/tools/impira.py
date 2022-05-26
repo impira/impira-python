@@ -411,10 +411,14 @@ def row_to_fname(row, use_original_filename) -> str:
     uid = row["uid"]
 
     if use_original_filename:
-        return row["File"]["name"]
+        return file_name
     else:
-        fname, ext = row["File"]["name"].rsplit(".", 1)
-        return (fname + "-" + row["uid"] + "." + ext).replace("/", "_")
+        if "." not in file_name:
+            fname = file_name + "-" + uid
+        else:
+            fname_, ext = file_name.rsplit(".", 1)
+            fname = fname_ + "-" + uid + "." + ext
+        return fname.replace("/", "_")
 
 
 class Impira(Tool):
