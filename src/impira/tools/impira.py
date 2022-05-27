@@ -763,7 +763,7 @@ class Impira(Tool):
         log = self._log()
 
         conn = self._conn()
-        files = conn.query("@files[uid, File: File[download_url, name]] -`File type`=Data")["data"]
+        files = conn.query("@files[uid, File: File[download_url, name]] -File.download_url=null -`File type`=Data")["data"]
         collections = conn.query(
             "@file_collection_contents[collection_uid, files: array_agg(file_uid)] -collection=null"
         )["data"]
