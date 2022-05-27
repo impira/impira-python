@@ -407,6 +407,9 @@ def row_to_record(row, doc_schema: DocSchema) -> Any:
 
 @validate_arguments
 def row_to_fname(row, use_original_filename) -> str:
+    file_name = row["File"].get("name") or ""
+    uid = row["uid"]
+
     if use_original_filename:
         return row["File"]["name"]
     else:
