@@ -295,7 +295,7 @@ def data_projection(skip_downloading_text):
 def upload_and_retrieve_text(conn, collection_uid, f, skip_downloading_text):
     existing = conn.query(
         "@`file_collections::%s`%s name='%s' File.IsPreprocessed=true"
-        % (collection_uid, data_projection(skip_downloading_text), f["name"]),
+        % (collection_uid, data_projection(skip_downloading_text), f["name"].replace("'", "\\'")),
     )["data"]
     if len(existing) > 0:
         return existing[0]
