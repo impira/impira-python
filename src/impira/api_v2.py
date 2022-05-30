@@ -11,10 +11,27 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus, urlparse
 
 
+class RotateSegment(BaseModel):
+    pages: str
+    degrees: int
+
+
+class Mutation(BaseModel):
+    rotate: Optional[int]
+    split: Optional[str]
+    remove_pages: Optional[str]
+    split_segments: Optional[List[str]]
+    rotate_segments: Optional[List[RotateSegment]]
+
+    def to_json(self):
+        return self.dict(exclude_unset=True)
+
+
 class FilePath(BaseModel):
     name: str
     path: str
     uid: Optional[str]
+    mutate: Optional[Mutation]
 
 
 class FieldType(str, Enum):
@@ -279,7 +296,7 @@ class Impira:
         cursor = None
 
         must_see = set(uids)
-        while True:
+        while must_see:
             resp = self.query(query, mode="poll", cursor=cursor, timeout=60)
             for d in resp["data"] or []:
                 if d["action"] != "insert":
@@ -296,8 +313,33 @@ class Impira:
 
             cursor = resp["cursor"]
 
-            if len(must_see) == 0:
-                break
+    @validate_arguments
+    def fetch_split_results(self, upload_uids: List[str], timeout=60):
+        upload_uid_list = ", ".join(['"%s"' % u for u in upload_uids])
+        query = (
+            "@`files`[uid, upload_uid: File.upload_uid, child: -eq(uid, File.upload_uid)] in(File.upload_uid, %s) and child=true"
+            % (upload_uid_list)
+        )
+
+        cursor = None
+
+        must_see = set(upload_uids)
+        while must_see:
+            resp = self.query(query, mode="poll", cursor=cursor, timeout=timeout)
+            for d in resp["data"] or []:
+                if d["action"] != "insert":
+                    continue
+
+                uid = d["data"]["uid"]
+                upload_uid = d["data"]["upload_uid"]
+                child = d["data"]["child"]
+
+                # This is an upload uid that has been processed, so we can remove it from the must_see list
+                if upload_uid in must_see:
+                    must_see.remove(upload_uid)
+                yield uid
+
+            cursor = resp["cursor"]
 
     @validate_arguments
     def query(self, query: str, mode: str = "iql", cursor: str = None, timeout: int = None):
@@ -332,7 +374,8 @@ class Impira:
                     raise InvalidRequest("Unsupported: specifying a UID in a multi-part file upload (%s)" % (f.uid))
 
             files_body = [("file", open(f.path, "rb")) for f in files]
-            data_body = [("data", json.dumps(_build_file_object(f.name, None, f.uid))) for f in files]
+            data_body = [("data", json.dumps(_build_file_object(f.name, None, f.uid, f.mutate))) for f in files]
+
             resp = self.session.post(
                 self._build_collection_url(collection_id, use_async=True),
                 files=tuple(files_body),
@@ -344,18 +387,28 @@ class Impira:
             elif not resp.ok:
                 raise APIError(resp)
             else:
-                return resp.json()["uids"]
+                return self._handle_upload_response(resp)
 
     @validate_arguments
     def _upload_url(self, collection_id: Optional[str], files: List[FilePath]):
         resp = self.session.post(
             self._build_collection_url(collection_id, use_async=True),
-            json={"data": [_build_file_object(f.name, f.path, f.uid) for f in files]},
+            json={"data": [_build_file_object(f.name, f.path, f.uid, f.mutate) for f in files]},
         )
         if not resp.ok:
             raise APIError(resp)
 
-        return resp.json()["uids"]
+        return self._handle_upload_response(resp)
+
+    def _handle_upload_response(self, upload_response: requests.Response):
+        resp_json = upload_response.json()
+
+        if resp_json.get("uids", None) is not None:
+            return resp_json.get("uids")
+        elif resp_json.get("upload_uids", None) is not None:
+            return self.fetch_split_results(resp_json.get("upload_uids"))
+
+        return []
 
     @validate_arguments
     def _set_field_path(self, entity_class: str, uid: str, path: List[str], data):
@@ -398,12 +451,14 @@ class Impira:
         return base_url
 
 
-def _build_file_object(name, path=None, uid=None):
+def _build_file_object(name, path=None, uid=None, mutate=None):
     ret = {"File": {"name": name}}
     if path is not None:
         ret["File"]["path"] = path
     if uid is not None:
         ret["uid"] = uid
+    if mutate is not None:
+        ret["File"]["mutate"] = mutate.to_json()
     return ret
 
 

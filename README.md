@@ -106,6 +106,7 @@ will retrieve the `uid` of each of the last 10 files uploaded to the collection.
 
 The examples directory contains end-to-end working examples for how to use the SDK.
 * `upload_files.py` walks through uploading a file, either locally or through a URL, and then waiting for its results.
+* `upload_and_split_files.py` walks through uploading a file, either locally or through a URL, remove all pages after page 5 and splitting the remaining pages, and then waiting for its results.
 * `download_all_collections_query.py` creates an IQL query that queries all data across all collections
 
 ## License
