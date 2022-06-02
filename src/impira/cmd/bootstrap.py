@@ -91,7 +91,7 @@ def build_parser(subparsers, parent_parser):
 def main(args):
     workdir = pathlib.Path(args.data)
 
-    manifest_file = workdir.joinpath("manifest.json")
+    manifest_file = workdir / "manifest.json"
 
     if not manifest_file.exists():
         log.fatal("No manifest.json file found in %s", workdir)
@@ -100,7 +100,7 @@ def main(args):
     M = schema_to_model(manifest.doc_schema)
 
     for doc in manifest.docs:
-        doc.fname = workdir.joinpath(doc.fname)
+        doc.fname = workdir / doc.fname
         assert doc.url is not None or doc.fname.exists()
         if doc.record is not None:
             doc.record = M.parse_obj(doc.record)

@@ -59,7 +59,7 @@ def build_parser(subparsers, parent_parser):
 
 def main(args):
     impira = Impira(config=Impira.Config(**vars(args)))
-    workdir = pathlib.Path(args.data).joinpath("collections", str(uuid4())[:4])
+    workdir = pathlib.Path(args.data) / "collections" / uuid4().hex[:4]
 
     doc_schema, records = impira.snapshot_collections(
         use_original_filenames=args.original_names,
@@ -71,13 +71,13 @@ def main(args):
     workdir.mkdir(parents=True, exist_ok=True)
 
     if args.download_files:
-        download_files(records, args.parallelism)
+        download_files(records, args.parallelism, workdir)
         docs = [{"fname": r["name"], "record": r["record"]} for r in records]
     else:
         docs = [{"fname": r["name"], "url": r["url"], "record": r["record"]} for r in records]
 
     manifest = DocManifest(doc_schema=doc_schema, docs=docs)
-    with open(workdir.joinpath("manifest.json"), "w") as f:
+    with open(workdir / "manifest.json", "w") as f:
         f.write(manifest.json(indent=2))
 
     log.info("Documents and collection labels have been written to directory '%s'", workdir)

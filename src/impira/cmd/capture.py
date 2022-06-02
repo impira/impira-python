@@ -31,16 +31,14 @@ def save_record(file_name, record, data_dir):
     fpath_prefix = "".join(
         [c for c in fpath_prefix if c.isalpha() or c.isdigit() or c == "-"]
     ).rstrip()
-    workdir = pathlib.Path(data_dir).joinpath(
-        "capture", fpath_prefix + "-" + str(uuid4())[:4]
-    )
+    workdir = pathlib.Path(data_dir) / "capture" / f"{fpath_prefix}-{uuid4().hex[:4]}"
     workdir.mkdir(parents=True, exist_ok=True)
-    copyfile(file_name, workdir.joinpath(fpath.name))
+    copyfile(file_name, workdir / fpath.name)
 
     docs = [{"fname": fpath.name, "record": record}]
     manifest = DocManifest(doc_schema=record_to_schema(record), docs=docs)
 
-    with open(workdir.joinpath("manifest.json"), "w") as f:
+    with open(workdir / "manifest.json", "w") as f:
         f.write(manifest.json(indent=2))
 
     return workdir
