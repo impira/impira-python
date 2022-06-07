@@ -2,11 +2,29 @@ import argparse
 import logging
 import multiprocessing
 import sys
+import textwrap
 
-from . import bootstrap
-from . import capture
-from . import snapshot
-from . import snapshot_collections
+_module_not_found_error = None
+try:
+    from . import bootstrap
+    from . import capture
+    from . import snapshot
+    from . import snapshot_collections
+except ModuleNotFoundError as e:
+    _module_not_found_error = e
+
+if _module_not_found_error is not None:
+    raise ModuleNotFoundError(
+        textwrap.dedent(
+            f"""\
+            At least one dependency not found: {str(_module_not_found_error)!r}
+            It is possible that impira was installed without the CLI dependencies. Run:
+
+              pip install 'impira[cli]'
+
+            to install impira with the CLI dependencies."""
+        )
+    )
 
 
 def main(args=None):
@@ -24,7 +42,7 @@ def main(args=None):
     for module in [capture, snapshot, bootstrap, snapshot_collections]:
         cmd_parser = module.build_parser(subparsers, parent_parser)
 
-    args = parser.parse_args()
+    args = parser.parse_args(args=args)
 
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(format="%(asctime)s %(levelname)s: %(message)s", level=level)

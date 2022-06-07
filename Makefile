@@ -13,10 +13,9 @@ clean:
 
 develop:
 	python3 -m venv venv
-	bash -c 'source venv/bin/activate && python3 -m pip install --upgrade pip'
-	bash -c 'source venv/bin/activate && python3 -m pip install setuptools'
-	bash -c 'source venv/bin/activate && python3 -m pip install -e .'
-	echo 'run "source venv/bin/activate" to enter development mode'
+	bash -c 'source venv/bin/activate && python -m pip install --upgrade pip setuptools'
+	bash -c 'source venv/bin/activate && python -m pip install -e .[all]'
+	@echo 'Run "source venv/bin/activate" to enter development mode'
 
 .PHONY: docs publish-docs
 docs:

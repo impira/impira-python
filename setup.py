@@ -14,16 +14,21 @@ with open(os.path.join(dir_name, "README.md"), "r", encoding="utf-8") as f:
 install_requires = [
     "pydantic",
     "requests",
-    # TODO: Make these optional (with an extension?)
-    "boto3",
-    "textract-trp",
-    # TODO: Make these optional (or only a doc branch?)
-    "myst-parser >= 0.15",
-    "sphinx >= 4.3",
 ]
 if sys.version_info.major == 3 and sys.version_info.minor < 7:
     install_requires.append("typing")
 
+extras_require = {
+    "cli": [
+        "boto3",
+        "textract-trp",
+    ],
+    "doc": [
+        "myst-parser >= 0.15",
+        "sphinx >= 4.3",
+    ],
+}
+extras_require["all"] = sorted({package for packages in extras_require.values() for package in packages})
 
 setuptools.setup(
     name="impira",
@@ -49,4 +54,5 @@ setuptools.setup(
         "console_scripts": ["impira = impira.cmd.__main__:main"],
     },
     install_requires=install_requires,
+    extras_require=extras_require,
 )

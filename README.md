@@ -14,15 +14,21 @@ This SDK is tested with Python 3.7.4+ on Mac OS X and Linux systems. We have use
 
 ## Installation
 
-You can install the Impira Python SDK directly through pip:
+You can install the Impira Python SDK, CLI, and its dependencies directly through pip:
 
 ```bash
+$ pip install 'impira[cli]'
+```
+
+To install _just_ the SDK and its dependencies use:
+
+``` bash
 $ pip install impira
 ```
 
 ### Development mode
 
-If you would like to install the SDK to develop locally, you can run the following:
+If you would like to install the SDK and CLI to develop locally, you can run the following:
 
 ```bash
 $ git clone git@github.com:impira/impira-python.git
