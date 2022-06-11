@@ -708,7 +708,7 @@ class Impira(Tool):
                     )
                     break
                 except APIError as e:
-                    log.warning("Failed to update. Will retry up to %d more times" % (10 - i - 1))
+                    log.warning("Failed to update. Will retry up to %d more times: %s" % (10 - i - 1, e))
 
         log.info("Done running update on %d files. Models will now update!" % len(labeled_files))
 
