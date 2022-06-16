@@ -22,6 +22,7 @@ class Mutation(BaseModel):
     remove_pages: Optional[str]
     split_segments: Optional[List[str]]
     rotate_segments: Optional[List[RotateSegment]]
+    split_exprs: Optional[Dict[str, str]]
 
     def to_json(self):
         return self.dict(exclude_unset=True)
