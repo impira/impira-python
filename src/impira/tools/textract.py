@@ -12,7 +12,7 @@ from trp import Document, SelectionElement, Word
 from ..cmd.utils import environ_or_required
 from ..schema import record_to_schema, schema_to_model
 from ..types import (
-    BBox,
+    Location,
     CheckboxLabel,
     DocData,
     NumberLabel,
@@ -22,8 +22,8 @@ from ..types import (
 from .tool import Tool
 
 
-def convert_textract_bbox(bbox, page_num) -> BBox:
-    return BBox(
+def convert_textract_bbox(bbox: Location, page_num) -> Location:
+    return Location(
         top=bbox.top,
         left=bbox.left,
         height=bbox.height,

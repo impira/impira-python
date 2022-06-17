@@ -8,7 +8,7 @@ from typing import Any, ForwardRef, Dict, List, Optional, Union, Callable
 from . import fmt
 
 # All values in the bbox are based on percentages
-class BBox(BaseModel):
+class Location(BaseModel):
     top: float = 0
     left: float = 0
     height: float = 0
@@ -16,7 +16,7 @@ class BBox(BaseModel):
     page: int = 0
 
     def expand(self):
-        return BBox(
+        return Location(
             top=self.top - 0.005,
             left=self.left - 0.005,
             height=self.height + 0.005,
@@ -26,18 +26,21 @@ class BBox(BaseModel):
 
 
 @validate_arguments
-def combine_bboxes(*boxes: BBox) -> BBox:
+def combine_locations(boxes: List[Location]) -> Location:
+    """Returns a `Location` object containing the enveloping bounding box for the provided list of `Location`s."""
     pages = set([b.page for b in boxes])
     assert len(pages) == 1, "All boxes must be on the same page: %s" % (pages)
+
     top = min([b.top for b in boxes])
+    bottom = max([b.top + b.height for b in boxes])
     left = min([b.left for b in boxes])
-    height = max([b.top + b.height for b in boxes]) - top
-    width = max([b.left + b.width for b in boxes]) - left
-    return BBox(
+    right = max([b.left + b.width for b in boxes])
+
+    return Location(
         top=top,
         left=left,
-        height=height,
-        width=width,
+        height=bottom - top,
+        width=right - left,
         page=list(pages)[0],
     )
 
@@ -49,7 +52,7 @@ class Cell(BaseModel):
 
 class ScalarLabel(BaseModel):
     value: Any
-    location: Optional[BBox]
+    location: Optional[Location]
     cell: Optional[Cell]
 
     def fmt(self):

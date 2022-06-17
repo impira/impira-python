@@ -13,8 +13,8 @@ from impira import Impira as ImpiraAPI, FieldType, InferredFieldType, parse_date
 from ..cmd.utils import environ_or_required
 from ..schema import schema_to_model
 from ..types import (
-    BBox,
-    combine_bboxes,
+    Location,
+    combine_locations,
     CheckboxLabel,
     SignatureLabel,
     DocData,
@@ -71,7 +71,7 @@ def is_overlapping(left1, width1, left2, width2):
 
 
 @validate_arguments
-def is_bbox_overlapping(bbox1: BBox, bbox2: BBox):
+def is_bbox_overlapping(bbox1: Location, bbox2: Location):
     return (
         bbox1.page == bbox2.page
         and is_overlapping(
@@ -86,7 +86,7 @@ def is_bbox_overlapping(bbox1: BBox, bbox2: BBox):
 
 class ImpiraWord(BaseModel):
     confidence: float
-    location: BBox
+    location: Location
     processed_word: str
     rotated: bool
     source: str
@@ -96,7 +96,7 @@ class ImpiraWord(BaseModel):
 
 class ImpiraEntity(BaseModel):
     label: str
-    location: BBox
+    location: Location
     processed: Any
     source_rivlets: List[str]
     uid: str
@@ -112,7 +112,7 @@ FirstClassEntityLabelToFieldType = {
 
 
 class CheckboxSource(BaseModel):
-    BBoxes: List[BBox]
+    BBoxes: List[Location]
 
 
 class ScalarLabel(BaseModel):
@@ -370,6 +370,26 @@ def fields_to_doc_schema(fields) -> DocSchema:
 
 
 @validate_arguments
+def maybe_get_location(label: ScalarLabel, field_type: str) -> Optional[Location]:
+
+    if label.Label.Source is None:
+        return None
+
+    if field_type in ("CheckboxLabel", "SignatureLabel"):
+        locations = label.Label.Source.BBoxes
+    elif field_type in ("TextLabel", "NumberLabel", "TimestampLabel"):
+        locations = [l.location for l in label.Label.Source]
+    elif field_type == "DocumentTagLabel":
+        locations = None
+    else:
+        raise ValueError(f"Unable to retrieve location from label of type {field_type} ({label = })")
+
+    if locations:
+        return combine_locations(locations)
+    return None
+
+
+@validate_arguments
 def row_to_record(row, doc_schema: DocSchema) -> Any:
     d = {}
     for field_name, field_type in doc_schema.fields.items():
@@ -384,11 +404,9 @@ def row_to_record(row, doc_schema: DocSchema) -> Any:
             impira_label = ScalarLabel.parse_obj(value)
             if impira_label.Label.IsPrediction:
                 continue
-            location = (
-                combine_bboxes(*[x.location for x in impira_label.Label.Source])
-                if len(impira_label.Label.Source) > 0
-                else None
-            )
+
+            location = maybe_get_location(impira_label, field_type)
+
             scalar = impira_label.Label.Value
             if scalar is not None:
                 if field_type == "TimestampLabel":
