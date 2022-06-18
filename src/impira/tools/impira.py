@@ -234,13 +234,13 @@ def generate_labels(
                 ),
                 ModelVersion=model_versions.get(field_name, 0),
             )
-        elif isinstance(value, CheckboxLabel) or isinstance(value, SignatureLabel):
+        elif isinstance(value, (CheckboxLabel, SignatureLabel)):
             scalar_label = ScalarLabel(
                 Label=ScalarLabel.L(
-                    Source=CheckboxSource(BBoxes=[value.location]),
+                    Source=CheckboxSource(BBoxes=[value.location] if value.location else []),
                     Value={
-                        "Value": value.value,
-                        "State": 1 if value.value else 0,
+                        "Value": value.value == 1 if value.value is not None else None,
+                        "State": value.value,
                     },
                 ),
                 Context=ScalarLabel.C(Entities=[]),
@@ -390,30 +390,38 @@ def maybe_get_location(label: ScalarLabel, field_type: str) -> Optional[Location
 
 
 @validate_arguments
+def maybe_get_value(label: ScalarLabel, field_type: str) -> Optional[Any]:
+
+    value = label.Label.Value
+    if field_type in ("CheckboxLabel", "SignatureLabel"):
+        value = value["State"]
+    elif field_type == "TimestampLabel" and value is not None:
+        value = parse_date(value)
+
+    return value
+
+
+@validate_arguments
 def row_to_record(row, doc_schema: DocSchema) -> Any:
     d = {}
     for field_name, field_type in doc_schema.fields.items():
         label = None
-        value = row.get(field_name, None)
+        field = row.get(field_name, None)
         if isinstance(field_type, DocSchema):
-            table_rows = [row_label["Label"]["Value"] for row_label in value["Label"]["Value"]]
+            table_rows = [row_label["Label"]["Value"] for row_label in field["Label"]["Value"]]
             label = [x for x in [row_to_record(tr, field_type) for tr in table_rows] if x is not None]
             if not label:
                 continue
-        elif value is not None:
-            impira_label = ScalarLabel.parse_obj(value)
+        elif field is not None:
+            impira_label = ScalarLabel.parse_obj(field)
             if impira_label.Label.IsPrediction:
                 continue
 
             location = maybe_get_location(impira_label, field_type)
+            value = maybe_get_value(impira_label, field_type)
 
-            scalar = impira_label.Label.Value
-            if scalar is not None:
-                if field_type == "TimestampLabel":
-                    scalar = parse_date(scalar)
-                elif field_type == "CheckboxLabel" or field_type == "SignatureLabel":
-                    scalar = scalar["Value"]  # Checkboxes are nested inside of an extra 'Value'
-            label = {"location": location, "value": scalar}
+            label = {"location": location, "value": value}
+
         d[field_name] = label
 
     if len(d) == 0:

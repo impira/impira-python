@@ -91,7 +91,7 @@ class TimestampLabel(ScalarLabel):
 
 
 class CheckboxLabel(ScalarLabel):
-    value: Optional[bool]
+    value: Optional[int]
 
     def fmt(self):
         return "\u2717" if self.value else ""
@@ -101,7 +101,7 @@ class CheckboxLabel(ScalarLabel):
 
 
 class SignatureLabel(ScalarLabel):
-    value: Optional[bool]
+    value: Optional[int]
 
 
 def traverse(record: Any, fn: Callable[[Any], None]):
