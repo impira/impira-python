@@ -25,7 +25,9 @@ extras_require = {
     ],
     "doc": [
         "myst-parser >= 0.15",
-        "sphinx >= 4.3",
+        "sphinx >= 4.5",
+        "commonmark >= 0.9",
+        "enum-tools[sphinx] >= 0.9",
     ],
 }
 extras_require["all"] = sorted({package for packages in extras_require.values() for package in packages})

@@ -12,5 +12,6 @@ and setting up collections based on snapshotted data.
     :caption: Content:
 
     install
+    sdk
     commands
 ```
