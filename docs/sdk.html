@@ -1,0 +1,577 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Impira Python SDK &#8212; Impira SDK  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Commands" href="commands.html" />
+    <link rel="prev" title="Installing the Impira SDK" href="install.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <span class="target" id="module-impira"></span><section id="impira-python-sdk">
+<h1>Impira Python SDK<a class="headerlink" href="#impira-python-sdk" title="Permalink to this headline">¶</a></h1>
+<p>The Impira SDK allows you to execute various commands against the
+<a class="reference external" href="https://docs.impira.com/ref">Impira API</a> as well as some more advanced
+operations (e.g. creating fields).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="impira.Impira">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">Impira</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">org_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">api_token</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'https://app.impira.com'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira" title="Permalink to this definition">¶</a></dt>
+<dd><p>This class is the main wrapper around a connection to an Impira org (including
+credentials). It uses a <code class="docutils literal notranslate"><span class="pre">requests.Session</span></code> object to optimize usage across requests.
+You should assume this class is <em>not</em> threadsafe.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>org_name</strong> (<em>str</em>) – Your org name. You can find this by logging into Impira and pulling out the text after <code class="docutils literal notranslate"><span class="pre">/o/</span></code> in your URL: <code class="docutils literal notranslate"><span class="pre">.../o/&lt;YOUR_ORG_NAME&gt;/...</span></code></p></li>
+<li><p><strong>api_token</strong> (<em>str</em>) – Your API token. See the <a class="reference external" href="https://docs.impira.com/ref#how-to-create-an-api-token">API docs</a> for instructions on how to obtain it.</p></li>
+<li><p><strong>ping</strong> (<em>bool</em>) – By default, Impira will try to ping the API when you create a connection to verify your credentials. You can set this flag to <code class="docutils literal notranslate"><span class="pre">False</span></code> to disable this check.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.upload_files">
+<span class="sig-name descname"><span class="pre">upload_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#impira.FilePath" title="impira.api_v2.FilePath"><span class="pre">impira.api_v2.FilePath</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.upload_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>The main entry point to upload files. Based on the paths of the files, this will
+automatically call the standard URL-based file upload (higher performance) or upload
+the files directly through the multi-part form API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em><em>, </em><em>optional</em>) – The collection to upload the files into. Specify <code class="docutils literal notranslate"><span class="pre">None</span></code> to upload the files to “All files”.</p></li>
+<li><p><strong>files</strong> (List[<a class="reference internal" href="#impira.FilePath" title="impira.FilePath"><code class="xref py py-class docutils literal notranslate"><span class="pre">FilePath</span></code></a>]) – A list of files (including their name, path, and any mutation options) to upload. These can be URLs or local files.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The uids of the uploaded files. If you specify mutations which result in a dynamic number of documents (e.g. page splitting), then the returned value will be a generator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.get_collection_id">
+<span class="sig-name descname"><span class="pre">get_collection_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.get_collection_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve the collection id corresponding to a given name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection_name</strong> (<em>str</em>) – The name of the collection to look up.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The uid of the collection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update fields in a collection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The collection to update.</p></li>
+<li><p><strong>data</strong> (<em>List</em><em>[</em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – A list of data updates to perform. Each record should contain a <code class="docutils literal notranslate"><span class="pre">uid</span></code> field corresponding to the file to update.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The updated uids.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.add_files_to_collection">
+<span class="sig-name descname"><span class="pre">add_files_to_collection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.add_files_to_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add existing files to a collection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The collection id to add the files into.</p></li>
+<li><p><strong>file_ids</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – A list of file uids to add into the collection.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.create_collection">
+<span class="sig-name descname"><span class="pre">create_collection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.create_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a collection with the provided name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection_name</strong> (<em>str</em>) – The name of the collection to create.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The collection id of the newly created collection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.create_field">
+<span class="sig-name descname"><span class="pre">create_field</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_spec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#impira.FieldSpec" title="impira.api_v2.FieldSpec"><span class="pre">impira.api_v2.FieldSpec</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.create_field" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a field in a collection. If you’re trying to create an inferred field (e.g. text extraction) then use
+<a class="reference internal" href="#impira.Impira.create_inferred_field" title="impira.Impira.create_inferred_field"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_inferred_field()</span></code></a> which wraps this function and constructs an inferred field spec for you.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The collection in which to create the field.</p></li>
+<li><p><strong>field_spec</strong> (<a class="reference internal" href="#impira.FieldSpec" title="impira.FieldSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldSpec</span></code></a>) – The field’s definition.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.create_fields">
+<span class="sig-name descname"><span class="pre">create_fields</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_specs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#impira.FieldSpec" title="impira.api_v2.FieldSpec"><span class="pre">impira.api_v2.FieldSpec</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.create_fields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create multiple fields in a collection. If you need to create multiple fields, this function is significantly
+more performant than calling <a class="reference internal" href="#impira.Impira.create_field" title="impira.Impira.create_field"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_field()</span></code></a> in a loop.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The collection in which to create the field.</p></li>
+<li><p><strong>field_specs</strong> – A list of fields to create.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.create_inferred_field">
+<span class="sig-name descname"><span class="pre">create_inferred_field</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inferred_field_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#impira.InferredFieldType" title="impira.api_v2.InferredFieldType"><span class="pre">impira.api_v2.InferredFieldType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.create_inferred_field" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an inferred field. This is just a wrapper around <a class="reference internal" href="#impira.Impira.create_field" title="impira.Impira.create_field"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_field()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The collection in which to create the field.</p></li>
+<li><p><strong>field_name</strong> (<a class="reference internal" href="#impira.InferredFieldType" title="impira.InferredFieldType"><code class="xref py py-class docutils literal notranslate"><span class="pre">InferredFieldType</span></code></a>) – The name of the field to create.</p></li>
+<li><p><strong>inferred_field_type</strong> – The inferred field type.</p></li>
+<li><p><strong>path</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – Specify a path if this is a sub-field of a table. For example, if this field should be created inside of a table named <code class="docutils literal notranslate"><span class="pre">T</span></code>, path should be <code class="docutils literal notranslate"><span class="pre">[&quot;T&quot;]</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.delete_field">
+<span class="sig-name descname"><span class="pre">delete_field</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.delete_field" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete a field in a collection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The collection in which to delete the field.</p></li>
+<li><p><strong>field_name</strong> (<em>str</em>) – The name of the field to delete.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.import_fields">
+<span class="sig-name descname"><span class="pre">import_fields</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.import_fields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Import field definitions from another collection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The (destination) collection in which to add the fields.</p></li>
+<li><p><strong>from_collection_id</strong> (<em>str</em>) – The (source) collection from which to add the fields.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.rename_file">
+<span class="sig-name descname"><span class="pre">rename_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.rename_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rename a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>uid</strong> (<em>str</em>) – The uid of the file to rename</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – The name to rename the file to.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The uid of the updated file (it should match the uid parameter you pass in)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.poll_for_results">
+<span class="sig-name descname"><span class="pre">poll_for_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.poll_for_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Poll a collection for new results for a set of uids. This method will block until each of the
+specified files has fully processed, so it’s most often used after uploading files to a collection
+as a way to block on them processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<em>str</em>) – The collection id to poll for results.</p></li>
+<li><p><strong>uids</strong> (<em>List</em><em>[</em><em>str</em><em>] or </em><em>Generator</em><em>[</em><em>str</em><em>, </em><em>None</em><em>, </em><em>None</em><em>]</em>) – A list or generator of file uids to block on. You can pass in the output of <a class="reference internal" href="#impira.Impira.upload_files" title="impira.Impira.upload_files"><code class="xref py py-func docutils literal notranslate"><span class="pre">upload_files()</span></code></a> to this function directly.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A generator which yields results for each uid as it’s available.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.query">
+<span class="sig-name descname"><span class="pre">query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'iql'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute an <a class="reference external" href="https://docs.impira.com/ref#using-impira-query-language-iql-for-advanced-queries">Impira Query Language (IQL) query</a>.
+You can either run the query ad-hoc (the default) or specify “poll” for the <code class="docutils literal notranslate"><span class="pre">mode</span></code> argument to poll for changes. In
+poll-mode, you can also specify a cursor to retrieve results since a particular point-in-time. See the
+<a class="reference external" href="https://docs.impira.com/ref#polling-for-changes">poll docs</a> for more information on polling.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>query</strong> (<em>str</em>) – The IQL query to execute</p></li>
+<li><p><strong>mode</strong> (<em>str</em>) – Either <code class="docutils literal notranslate"><span class="pre">iql</span></code> (the default) or <code class="docutils literal notranslate"><span class="pre">poll</span></code>. <code class="docutils literal notranslate"><span class="pre">iql</span></code> will run an ad-hoc query (against the current state) and <code class="docutils literal notranslate"><span class="pre">poll</span></code> will block until there are changes to the query results.</p></li>
+<li><p><strong>cursor</strong> (<em>str</em><em>, </em><em>optional</em>) – If specified in <code class="docutils literal notranslate"><span class="pre">poll</span></code> mode, the command will return changes to the query results since this cursor.</p></li>
+<li><p><strong>timeout</strong> (<em>int</em><em>, </em><em>optional</em>) – A timeout in seconds to run the query or poll for new results.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A generator which yields results for each uid as it’s available.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.get_app_url">
+<span class="sig-name descname"><span class="pre">get_app_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resource_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#impira.ResourceType" title="impira.api_v2.ResourceType"><span class="pre">impira.api_v2.ResourceType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">resource_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#impira.Impira.get_app_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper function to generate a resource URL.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resource_type</strong> (<a class="reference internal" href="#impira.ResourceType" title="impira.ResourceType"><code class="xref py py-class docutils literal notranslate"><span class="pre">ResourceType</span></code></a>) – The type of the resource.</p></li>
+<li><p><strong>resource_id</strong> (<em>str</em>) – The value (of the resource type) to point to.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The https URL of the resource.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.Impira.get_collection_uid">
+<span class="sig-name descname"><span class="pre">get_collection_uid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira.get_collection_uid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deprecated: Use <a class="reference internal" href="#impira.Impira.get_collection_id" title="impira.Impira.get_collection_id"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_collection_id()</span></code></a> instead.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="impira.FilePath">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">FilePath</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mutate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#impira.Mutation" title="impira.api_v2.Mutation"><span class="pre">impira.api_v2.Mutation</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.FilePath" title="Permalink to this definition">¶</a></dt>
+<dd><p>A local or remote file that can be uploaded to Impira.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – The name of the file. This will appear in the Impira UI. The file’s name does not have to be unique.</p></li>
+<li><p><strong>path</strong> (<em>str</em>) – A path which is a local file or a remote file that Impira can access. The path is optionally URL-formatted. You can specify <code class="docutils literal notranslate"><span class="pre">file://</span></code> as the protocol for a local file, or use a remote protocol like <code class="docutils literal notranslate"><span class="pre">http://</span></code> for a remote file.</p></li>
+<li><p><strong>uid</strong> (<em>str</em><em>, </em><em>optional</em>) – The unique id for the file in Impira. Impira will automatically assign a unique <code class="docutils literal notranslate"><span class="pre">uid</span></code> if you do not specify one. If you do specify a <code class="docutils literal notranslate"><span class="pre">uid</span></code>, and the file already exists, the upload will overwrite the existing file as a new version.</p></li>
+<li><p><strong>mutate</strong> (<a class="reference internal" href="#impira.Mutation" title="impira.Mutation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mutation</span></code></a>, optional) – A set of <a class="reference external" href="https://docs.impira.com/ref#file-modification-during-api-upload">mutations</a> to apply while uploading the file.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="impira.Mutation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">Mutation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_pages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split_segments</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotate_segments</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#impira.RotateSegment" title="impira.api_v2.RotateSegment"><span class="pre">impira.api_v2.RotateSegment</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split_exprs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Mutation" title="Permalink to this definition">¶</a></dt>
+<dd><p>A class that allows you to configure the mutations to apply to a file.
+See the <a class="reference external" href="https://docs.impira.com/ref#file-modification-during-api-upload">Mutation API docs</a> for
+more details on the available options.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="impira.RotateSegment">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">RotateSegment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">degrees</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.RotateSegment" title="Permalink to this definition">¶</a></dt>
+<dd><p>A single segment (set of pages) to rotate.</p>
+</dd></dl>
+
+<dl class="py class enum">
+<dt class="sig sig-object py" id="impira.ResourceType">
+<em class="property"><span class="pre">enum</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">ResourceType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.ResourceType" title="Permalink to this definition">¶</a></dt>
+<dd><p>An enumeration of the various resource types in Impira to help with generating URLs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fc</strong> – Reference a collection by its id.</p></li>
+<li><p><strong>dc</strong> – Reference a dataset by its id.</p></li>
+<li><p><strong>ec</strong> – Reference an entity class by its name (e.g. <code class="docutils literal notranslate"><span class="pre">file_collections::574764db867afdb9</span></code>).</p></li>
+<li><p><strong>collection</strong> – Reference a collection by name.</p></li>
+<li><p><strong>files</strong> – Reference “All files” (the global endpoint).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Member Type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></p>
+</dd>
+</dl>
+<p>Valid values are as follows:</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.ResourceType.fc">
+<span class="sig-name descname"><span class="pre">fc</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;ResourceType.fc:</span> <span class="pre">'fc'&gt;</span></em><a class="headerlink" href="#impira.ResourceType.fc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.ResourceType.dc">
+<span class="sig-name descname"><span class="pre">dc</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;ResourceType.dc:</span> <span class="pre">'dc'&gt;</span></em><a class="headerlink" href="#impira.ResourceType.dc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.ResourceType.ec">
+<span class="sig-name descname"><span class="pre">ec</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;ResourceType.ec:</span> <span class="pre">'ec'&gt;</span></em><a class="headerlink" href="#impira.ResourceType.ec" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.ResourceType.collection">
+<span class="sig-name descname"><span class="pre">collection</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;ResourceType.collection:</span> <span class="pre">'collection'&gt;</span></em><a class="headerlink" href="#impira.ResourceType.collection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.ResourceType.files">
+<span class="sig-name descname"><span class="pre">files</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;ResourceType.files:</span> <span class="pre">'files'&gt;</span></em><a class="headerlink" href="#impira.ResourceType.files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="impira.APIError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">APIError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.APIError" title="Permalink to this definition">¶</a></dt>
+<dd><p>An exception that wraps a failed response. The <code class="docutils literal notranslate"><span class="pre">response</span></code> field gives you access to the underlying response.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="impira.IQLError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">IQLError</span></span><a class="headerlink" href="#impira.IQLError" title="Permalink to this definition">¶</a></dt>
+<dd><p>An exception that wraps an invalid IQL query.</p>
+</dd></dl>
+
+<dl class="py class enum">
+<dt class="sig sig-object py" id="impira.FieldType">
+<em class="property"><span class="pre">enum</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">FieldType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.FieldType" title="Permalink to this definition">¶</a></dt>
+<dd><p>An enumeration of various field types.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Member Type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></p>
+</dd>
+</dl>
+<p>Valid values are as follows:</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.FieldType.text">
+<span class="sig-name descname"><span class="pre">text</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;FieldType.text:</span> <span class="pre">'STRING'&gt;</span></em><a class="headerlink" href="#impira.FieldType.text" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.FieldType.number">
+<span class="sig-name descname"><span class="pre">number</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;FieldType.number:</span> <span class="pre">'NUMBER'&gt;</span></em><a class="headerlink" href="#impira.FieldType.number" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.FieldType.bool">
+<span class="sig-name descname"><span class="pre">bool</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;FieldType.bool:</span> <span class="pre">'BOOL'&gt;</span></em><a class="headerlink" href="#impira.FieldType.bool" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.FieldType.timestamp">
+<span class="sig-name descname"><span class="pre">timestamp</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;FieldType.timestamp:</span> <span class="pre">'TIMESTAMP'&gt;</span></em><a class="headerlink" href="#impira.FieldType.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.FieldType.entity">
+<span class="sig-name descname"><span class="pre">entity</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;FieldType.entity:</span> <span class="pre">'ENTITY'&gt;</span></em><a class="headerlink" href="#impira.FieldType.entity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class enum">
+<dt class="sig sig-object py" id="impira.InferredFieldType">
+<em class="property"><span class="pre">enum</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">InferredFieldType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.InferredFieldType" title="Permalink to this definition">¶</a></dt>
+<dd><p>An enum that wraps inferred field types and contains helper methods to create
+<a class="reference internal" href="#impira.FieldSpec" title="impira.FieldSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldSpec</span></code></a> instances from them.</p>
+<p>Valid values are as follows:</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.InferredFieldType.text">
+<span class="sig-name descname"><span class="pre">text</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;InferredFieldType.text:</span> <span class="pre">{'expression':</span> <span class="pre">'`text_string-dev-1`(File.text)',</span> <span class="pre">'type':</span> <span class="pre">'STRING'}&gt;</span></em><a class="headerlink" href="#impira.InferredFieldType.text" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.InferredFieldType.number">
+<span class="sig-name descname"><span class="pre">number</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;InferredFieldType.number:</span> <span class="pre">{'expression':</span> <span class="pre">'`text_number-dev-1`(File.text)',</span> <span class="pre">'type':</span> <span class="pre">'NUMBER'}&gt;</span></em><a class="headerlink" href="#impira.InferredFieldType.number" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.InferredFieldType.timestamp">
+<span class="sig-name descname"><span class="pre">timestamp</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;InferredFieldType.timestamp:</span> <span class="pre">{'expression':</span> <span class="pre">'`text_date-dev-1`(File.text)',</span> <span class="pre">'type':</span> <span class="pre">'TIMESTAMP'}&gt;</span></em><a class="headerlink" href="#impira.InferredFieldType.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.InferredFieldType.checkbox">
+<span class="sig-name descname"><span class="pre">checkbox</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;InferredFieldType.checkbox:</span> <span class="pre">{'expression':</span> <span class="pre">'checkbox(File.text)',</span> <span class="pre">'type':</span> <span class="pre">'STRING'}&gt;</span></em><a class="headerlink" href="#impira.InferredFieldType.checkbox" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.InferredFieldType.signature">
+<span class="sig-name descname"><span class="pre">signature</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;InferredFieldType.signature:</span> <span class="pre">{'expression':</span> <span class="pre">'region_signature(File.text)',</span> <span class="pre">'type':</span> <span class="pre">'STRING'}&gt;</span></em><a class="headerlink" href="#impira.InferredFieldType.signature" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.InferredFieldType.table">
+<span class="sig-name descname"><span class="pre">table</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;InferredFieldType.table:</span> <span class="pre">{'expression':</span> <span class="pre">'entity_one_many(File.text)',</span> <span class="pre">'type':</span> <span class="pre">'ENTITY',</span> <span class="pre">'isList':</span> <span class="pre">True}&gt;</span></em><a class="headerlink" href="#impira.InferredFieldType.table" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="impira.InferredFieldType.document_tag">
+<span class="sig-name descname"><span class="pre">document_tag</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;InferredFieldType.document_tag:</span> <span class="pre">{'expression':</span> <span class="pre">'document_tag(File)',</span> <span class="pre">'type':</span> <span class="pre">'STRING'}&gt;</span></em><a class="headerlink" href="#impira.InferredFieldType.document_tag" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code> and its members also have the following methods:</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="impira.InferredFieldType.build_field_spec">
+<span class="sig-name descname"><span class="pre">build_field_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">field_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#impira.FieldSpec" title="impira.api_v2.FieldSpec"><span class="pre">impira.api_v2.FieldSpec</span></a></span></span><a class="headerlink" href="#impira.InferredFieldType.build_field_spec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build a field spec for an inferred field type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>field_name</strong> (<em>str</em>) – The name of the field to create.</p></li>
+<li><p><strong>path</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – Specify a path if this is a sub-field of a table. For example, if this field should be created inside of a table named <code class="docutils literal notranslate"><span class="pre">T</span></code>, path should be <code class="docutils literal notranslate"><span class="pre">[&quot;T&quot;]</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>:returns A <a class="reference internal" href="#impira.FieldSpec" title="impira.FieldSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">FieldSpec</span></code></a>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="impira.FieldSpec">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">FieldSpec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#impira.FieldType" title="impira.api_v2.FieldType"><span class="pre">impira.api_v2.FieldType</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">expression</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isList</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.FieldSpec" title="Permalink to this definition">¶</a></dt>
+<dd><p>The definition of a field.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="impira.InvalidRequest">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">InvalidRequest</span></span><a class="headerlink" href="#impira.InvalidRequest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Impira SDK</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Content:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installing the Impira SDK</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Impira Python SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">Commands</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="install.html" title="previous chapter">Installing the Impira SDK</a></li>
+      <li>Next: <a href="commands.html" title="next chapter">Commands</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Impira Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.5.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/sdk.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

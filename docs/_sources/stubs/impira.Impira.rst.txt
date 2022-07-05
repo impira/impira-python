@@ -1,0 +1,6 @@
+﻿impira.Impira
+=============
+
+.. currentmodule:: impira
+
+.. autoclass:: Impira

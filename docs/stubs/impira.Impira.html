@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>impira.Impira &#8212; Impira SDK  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Commands" href="../commands.html" />
+    <link rel="prev" title="impira — The Impira Python API SDK" href="../sdk.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="impira-impira">
+<h1>impira.Impira<a class="headerlink" href="#impira-impira" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="impira.Impira">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">impira.</span></span><span class="sig-name descname"><span class="pre">Impira</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">org_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">api_token</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'https://app.impira.com'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ping</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#impira.Impira" title="Permalink to this definition">¶</a></dt>
+<dd><p>This class is the main wrapper around a connection to an Impira org (including
+credentials). It uses a <code class="docutils literal notranslate"><span class="pre">requests.Session</span></code> object to optimize usage across requests.
+You should assume this class is <em>not</em> threadsafe.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>org_name</strong> (<em>str</em>) – Your org name. You can find this by logging into Impira and pulling out the text after <code class="docutils literal notranslate"><span class="pre">/o/</span></code> in your URL: <code class="docutils literal notranslate"><span class="pre">.../o/&lt;YOUR_ORG_NAME&gt;/...</span></code></p></li>
+<li><p><strong>api_token</strong> (<em>str</em>) – Your API token. See the <a class="reference external" href="https://docs.impira.com/ref#how-to-create-an-api-token">API docs</a> for instructions on how to obtain it.</p></li>
+<li><p><strong>ping</strong> (<em>bool</em>) – By default, Impira will try to ping the API when you create a connection to verify your credentials. You can set this flag to <code class="docutils literal notranslate"><span class="pre">False</span></code> to disable this check.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Impira SDK</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Content:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installing the Impira SDK</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../sdk.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">impira</span></code> — The Impira Python API SDK</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../sdk.html#class-overview">Class overview</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../commands.html">Commands</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../sdk.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">impira</span></code> — The Impira Python API SDK</a><ul>
+      <li>Previous: <a href="../sdk.html" title="previous chapter"><code class="xref py py-mod docutils literal notranslate"><span class="pre">impira</span></code> — The Impira Python API SDK</a></li>
+      <li>Next: <a href="../commands.html" title="next chapter">Commands</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Impira Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/stubs/impira.Impira.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
