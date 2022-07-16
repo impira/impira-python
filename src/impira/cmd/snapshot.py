@@ -53,6 +53,13 @@ def build_parser(subparsers, parent_parser):
         help="Only saved labeled files",
     )
 
+    parser.add_argument(
+        "--filter-collection",
+        default=None,
+        type=str,
+        help="Only snapshot files that are also in this collection uid",
+    )
+
     parser.set_defaults(func=main)
     return parser
 
@@ -82,6 +89,7 @@ def main(args):
         collection_uid=args.collection,
         use_original_filenames=args.original_names,
         labeled_files_only=args.labeled_files_only,
+        filter_collection_uid=args.filter_collection,
     )
 
     log.info("Downloading %d files to %s", len(records), workdir)

@@ -618,22 +618,36 @@ class Impira(Tool):
         field_names_to_update = set()
         for f in schema[:max_fields] if max_fields != -1 else schema:
             field_type = f.field_type
-            first_labels = labels[0]
-            if f.name in first_labels and isinstance(first_labels[f.name], ScalarLabel) and not skip_type_inference:
-                entities = first_labels[f.name].Context.Entities
-                unique_entity_types = set(
-                    [field_type]
-                    + [
-                        FirstClassEntityLabelToFieldType[e.label]
-                        for e in entities
-                        if e.label in FirstClassEntityLabelToFieldType
-                    ]
-                )
 
-                if InferredFieldType.timestamp in unique_entity_types:
-                    field_type = InferredFieldType.timestamp
-                elif InferredFieldType.number in unique_entity_types:
-                    field_type = InferredFieldType.number
+            if not skip_type_inference:
+                narrow_types = set()
+                for label in labels:
+                    if f.name in label and isinstance(label[f.name], ScalarLabel):
+                        entities = label[f.name].Context.Entities
+                        unique_entity_types = set(
+                            [field_type]
+                            + [
+                                FirstClassEntityLabelToFieldType[e.label]
+                                for e in entities
+                                if e.label in FirstClassEntityLabelToFieldType
+                            ]
+                        )
+
+                    if InferredFieldType.timestamp in unique_entity_types:
+                        narrow_type = InferredFieldType.timestamp
+                    elif InferredFieldType.number in unique_entity_types:
+                        narrow_type = InferredFieldType.number
+                    else:
+                        narrow_type = field_type
+
+                    narrow_types.add(narrow_type)
+                    if narrow_type == InferredFieldType.text:
+                        break
+
+                for weak_type in [InferredFieldType.text, InferredFieldType.number, InferredFieldType.timestamp]:
+                    if weak_type in narrow_types:
+                        field_type = weak_type
+                        break
 
             if f.name in current_fields or (len(f.path) > 0 and f.path[0] in current_fields):
                 existing_field = current_fields.get(f.name) or current_fields.get(f.path[0])
@@ -761,11 +775,16 @@ class Impira(Tool):
         log.info("Done!")
 
     @validate_arguments
-    def snapshot(self, collection_uid: str, use_original_filenames=False, labeled_files_only=False):
+    def snapshot(
+        self, collection_uid: str, use_original_filenames=False, labeled_files_only=False, filter_collection_uid=None
+    ):
         log = self._log()
 
         conn = self._conn()
-        resp = conn.query("@file_collections::%s" % (collection_uid))
+
+        filt = f"-join_one(`file_collections::{filter_collection_uid}`, uid, uid)=null" if filter_collection_uid else ""
+
+        resp = conn.query("@`file_collections::%s` %s" % (collection_uid, filt))
 
         doc_schema = fields_to_doc_schema(filter_inferred_fields(resp["schema"]["children"]))
         records = [
@@ -789,7 +808,9 @@ class Impira(Tool):
         log = self._log()
 
         conn = self._conn()
-        files = conn.query("@files[uid, File: File[download_url, name]] -File.download_url=null -`File type`=Data")["data"]
+        files = conn.query("@files[uid, File: File[download_url, name]] -File.download_url=null -`File type`=Data")[
+            "data"
+        ]
         collections = conn.query(
             "@file_collection_contents[collection_uid, files: array_agg(file_uid)] -collection=null"
         )["data"]
