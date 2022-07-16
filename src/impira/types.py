@@ -65,13 +65,22 @@ class ScalarLabel(BaseModel):
 class NumberLabel(ScalarLabel):
     value: Optional[Union[StrictInt, StrictFloat, float]]
 
+    def fmt(self):
+        return str(self.value)
+
 
 class TextLabel(ScalarLabel):
     value: Optional[str]
 
 
 class DocumentTagLabel(ScalarLabel):
-    value: Optional[str]
+    value: Union[List[str], Optional[str]]
+
+    def fmt(self):
+        if isinstance(self.value, list):
+            return self.value
+        else:
+            return [self.value]
 
 
 class TimestampLabel(ScalarLabel):

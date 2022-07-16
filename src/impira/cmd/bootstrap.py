@@ -82,6 +82,18 @@ def build_parser(subparsers, parent_parser):
         type=int,
         help="Only upload up to this many files",
     )
+    parser.add_argument(
+        "--batch-size",
+        default=50,
+        type=int,
+        help="Batch size for downloading text and labeling files",
+    )
+    parser.add_argument(
+        "--first-batch",
+        default=1,
+        type=int,
+        help="First batch to start (this is useful for resuming)",
+    )
     Impira.add_arguments(parser)
 
     parser.set_defaults(func=main)
@@ -120,4 +132,6 @@ def main(args):
         collection_name=args.name,
         max_fields=args.max_fields,
         max_files=args.max_files,
+        batch_size=args.batch_size,
+        first_batch=args.first_batch,
     )

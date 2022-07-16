@@ -4,10 +4,11 @@ import requests
 from shutil import copyfile
 from uuid import uuid4
 
+from ..api_v2 import urljoin
 from ..tools.impira import Impira
 from ..config import get_logger
 from ..schema import record_to_schema
-from ..types import DocManifest
+from ..types import DocSchema, DocManifest
 from .utils import add_datadir_arg
 
 log = get_logger("snapshot")
@@ -27,8 +28,14 @@ def build_parser(subparsers, parent_parser):
         "--collection",
         default=None,
         type=str,
-        required=True,
         help="uid of the collection to snapshot",
+    )
+
+    parser.add_argument(
+        "--all-collections",
+        default=False,
+        action="store_true",
+        help="Snapshot all collections",
     )
 
     parser.add_argument(
@@ -82,15 +89,31 @@ def download_files(records, parallelism, workdir):
 
 
 def main(args):
+    if (args.collection is None and not args.all_collections) or (args.collection is not None and args.all_collections):
+        log.fatal("Must specify exactly one of --collection or --all-collections")
+        return
+
     impira = Impira(config=Impira.Config(**vars(args)))
     workdir = pathlib.Path(args.data) / "capture" / f"{args.collection}-{uuid4().hex[:4]}"
 
-    schema, records = impira.snapshot(
-        collection_uid=args.collection,
-        use_original_filenames=args.original_names,
-        labeled_files_only=args.labeled_files_only,
-        filter_collection_uid=args.filter_collection,
-    )
+    if args.all_collections:
+        conn = impira._conn()
+        collections = [r["uid"] for r in conn.query("@file_collections[uid]")["data"]]
+    else:
+        collections = [args.collection]
+
+    schema = DocSchema(fields={})
+    records = []
+    for collection_uid in collections:
+        log.info("Snapshotting collection %s" % (urljoin(args.base_url, "o", args.org_name, "fc", collection_uid)))
+        collection_schema, collection_records = impira.snapshot(
+            collection_uid=collection_uid,
+            use_original_filenames=args.original_names,
+            labeled_files_only=args.labeled_files_only,
+            filter_collection_uid=args.filter_collection,
+        )
+        schema.fields.update(collection_schema.fields)
+        records.extend(collection_records)
 
     log.info("Downloading %d files to %s", len(records), workdir)
     workdir.mkdir(parents=True, exist_ok=True)

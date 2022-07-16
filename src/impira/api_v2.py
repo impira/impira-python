@@ -167,15 +167,21 @@ class ResourceType(str, Enum):
     files = "files"
 
 
+FMTS = ["%Y-%m-%d", "%Y-%m", "%Y"]
+
+
 @validate_arguments
 def parse_date(s: str) -> datetime:
-    try:
-        return datetime.strptime(s, "%Y-%m-%d")
-    except ValueError:
+    for i, fmt in enumerate(FMTS):
         try:
-            return datetime.strptime(s, "%Y-%m")
-        except ValueError:
-            return datetime.strptime(s, "%Y")
+            return datetime.strptime(s, fmt)
+        except ValueError as e:
+            # From https://stackoverflow.com/questions/5045210/how-to-remove-unconverted-data-from-a-python-datetime-object
+            if len(e.args) > 0 and e.args[0].startswith("unconverted data remains: "):
+                prefix = s[: -(len(e.args[0]) - 26)]
+                return datetime.strptime(prefix, fmt)
+            elif i == len(FMTS) - 1:
+                raise
 
 
 class Impira:
@@ -578,6 +584,13 @@ class Impira:
                 args["timeout"] = math.ceil(timeout - time_since)
                 logging.warning("Request timed out, but still have %gs left. Will try again..." % (args["timeout"]))
                 continue
+            elif resp.status_code == HTTPStatus.TOO_MANY_REQUESTS and time_since < timeout - 0.1:
+                args["timeout"] = math.ceil(timeout - 0.1 - time_since)
+                logging.warning(
+                    "Hit a rate limit, but still have %gs left. Will sleep for 100ms and try again..."
+                    % (args["timeout"])
+                )
+                time.sleep(0.1)
             else:
                 raise APIError(resp)
 

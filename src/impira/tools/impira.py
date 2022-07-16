@@ -115,6 +115,14 @@ class CheckboxSource(BaseModel):
     BBoxes: List[Location]
 
 
+class DocumentTagValue(BaseModel):
+    class L(BaseModel):
+        Value: Optional[str]
+        IsPrediction: bool = False
+
+    Label: L
+
+
 class ScalarLabel(BaseModel):
     class L(BaseModel):
         Source: Optional[Union[CheckboxSource, List[ImpiraWord]]]
@@ -244,9 +252,21 @@ def generate_labels(
                     },
                 ),
                 Context=ScalarLabel.C(Entities=[]),
+                IsPrediction=False,
                 ModelVersion=model_versions.get(field_name, 0),
             )
 
+            labels[field_name] = scalar_label
+        elif isinstance(value, DocumentTagLabel):
+            scalar_label = ScalarLabel(
+                Label=ScalarLabel.L(
+                    Source=[],
+                    Value=[DocumentTagValue(Label={"Value": x, "IsPrediction": False}) for x in value.fmt()],
+                ),
+                Context=ScalarLabel.C(Entities=[]),
+                IsPrediction=False,
+                ModelVersion=model_versions.get(field_name, 0),
+            )
             labels[field_name] = scalar_label
         elif value is not None:
             w = find_overlapping_words(value, words)
@@ -407,12 +427,12 @@ def row_to_record(row, doc_schema: DocSchema) -> Any:
     for field_name, field_type in doc_schema.fields.items():
         label = None
         field = row.get(field_name, None)
-        if isinstance(field_type, DocSchema):
+        if isinstance(field_type, DocSchema) and field.get("Label") and field.get("Label").get("Value"):
             table_rows = [row_label["Label"]["Value"] for row_label in field["Label"]["Value"]]
             label = [x for x in [row_to_record(tr, field_type) for tr in table_rows] if x is not None]
             if not label:
                 continue
-        elif field is not None:
+        elif field is not None and field.get("Label") is not None:
             impira_label = ScalarLabel.parse_obj(field)
             if impira_label.Label.IsPrediction:
                 continue
@@ -445,6 +465,13 @@ def row_to_fname(row, use_original_filename) -> str:
             fname_, ext = file_name.rsplit(".", 1)
             fname = fname_ + "-" + uid + "." + ext
         return fname.replace("/", "_")
+
+
+def fname_filter(fnames):
+    return "in(File.name, %s)" % (",".join(['"%s"' % n.replace('"', '\\"') for n in fnames]))
+
+
+RETRIES = 10
 
 
 class Impira(Tool):
@@ -486,6 +513,8 @@ class Impira(Tool):
         collection_name=None,
         max_fields=-1,
         max_files=-1,
+        batch_size=50,
+        first_batch=1,
     ):
         log = self._log()
 
@@ -532,21 +561,25 @@ class Impira(Tool):
                     )
                 ]
         else:
+            all_fnames = [e.fname.name for e in entries]
             while True:
-                uids = {
-                    r["name"]: r
-                    for r in conn.query(
-                        "@`file_collections::%s`%s" % (collection_uid, data_projection(skip_downloading_text))
-                    )["data"]
-                }
+                uids = {}
+                for b in batch(all_fnames, batch_size):
+                    uids.update(
+                        {
+                            r["name"]: r
+                            for r in conn.query(
+                                "@`file_collections::%s`%s %s"
+                                % (collection_uid, data_projection(skip_downloading_text), fname_filter(b))
+                            )["data"]
+                        }
+                    )
 
                 if add_files:
                     missing_files = [e.fname.name for e in entries if e.fname.name not in uids]
                     if len(missing_files) == 0:
                         break
-                    file_filter = "in(File.name, %s)" % (
-                        ",".join(['"%s"' % n.replace('"', '\\"') for n in missing_files])
-                    )
+                    file_filter = fname_filter(missing_files)
                     missing_file_uids = {
                         r["name"]: r["uid"]
                         for r in conn.query("@files[name: File.name, uid] %s" % (file_filter))["data"]
@@ -575,10 +608,12 @@ class Impira(Tool):
         # Now, just trim it down to the labeled entries
         labeled_entries = []
         labeled_files = []
+        seen_uids = set()
         for i, e in enumerate(entries):
-            if e.record is not None:
+            if e.record is not None and file_data[i]["uid"] not in seen_uids:
                 labeled_entries.append(e)
                 labeled_files.append(file_data[i])
+                seen_uids.add(file_data[i]["uid"])
 
         if len(labeled_entries) == 0:
             log.warning("No records have labels. Stopping now that uploads have completed.")
@@ -633,16 +668,16 @@ class Impira(Tool):
                             ]
                         )
 
-                    if InferredFieldType.timestamp in unique_entity_types:
-                        narrow_type = InferredFieldType.timestamp
-                    elif InferredFieldType.number in unique_entity_types:
-                        narrow_type = InferredFieldType.number
-                    else:
-                        narrow_type = field_type
+                        if InferredFieldType.timestamp in unique_entity_types:
+                            narrow_type = InferredFieldType.timestamp
+                        elif InferredFieldType.number in unique_entity_types:
+                            narrow_type = InferredFieldType.number
+                        else:
+                            narrow_type = field_type
 
-                    narrow_types.add(narrow_type)
-                    if narrow_type == InferredFieldType.text:
-                        break
+                        narrow_types.add(narrow_type)
+                        if narrow_type == InferredFieldType.text:
+                            break
 
                 for weak_type in [InferredFieldType.text, InferredFieldType.number, InferredFieldType.timestamp]:
                     if weak_type in narrow_types:
@@ -725,30 +760,44 @@ class Impira(Tool):
 
         log.info("Running update on %d files" % len(labeled_files))
 
-        # Batch the updates into chunks of 200, and retry a few times because of deadlock-issues
-        for b in batch([x for x in zip(labeled_files, labels)], n=200):
-            for i in range(10):
+        # Batch the updates into chunks and retry a few times because of deadlock-issues
+        batches = [b for b in batch([x for x in zip(labeled_files, labels)], n=batch_size)]
+        for b_idx, b in enumerate(batches):
+            if b_idx < first_batch - 1:
+                continue
+            log.info("Updating batch %d/%d", b_idx + 1, len(batches))
+            for i in range(RETRIES):
                 if i > 0:
                     log.warning("Sleeping for 1 second...")
                     time.sleep(1)
                 try:
-                    conn.update(
-                        collection_uid,
-                        [
-                            {
-                                **{"uid": fd["uid"]},
-                                **{
-                                    field_path: label.dict(exclude_none=True)
-                                    for field_path, label in ld.items()
-                                    if field_path in field_names_to_update
-                                },
-                            }
-                            for (fd, ld) in b
-                        ],
-                    )
+                    mini_batches = [x for x in batch(b, n=max(1, batch_size // (i // 2 + 1)))]
+
+                    for mb_idx, mb in enumerate(mini_batches):
+                        if len(mini_batches) > 1:
+                            log.info("Doing a mini-update (attempt %d): %d/%d", i + 1, mb_idx + 1, len(mini_batches))
+                        conn.update(
+                            collection_uid,
+                            [
+                                {
+                                    **{"uid": fd["uid"]},
+                                    **{
+                                        field_path: label.dict(exclude_none=True)
+                                        for field_path, label in ld.items()
+                                        if field_path in field_names_to_update
+                                    },
+                                }
+                                for (fd, ld) in mb
+                            ],
+                        )
+                    if i > 0:
+                        log.info("Success!")
                     break
                 except APIError as e:
-                    log.warning("Failed to update. Will retry up to %d more times: %s" % (10 - i - 1, e))
+                    if i < RETRIES - 1:
+                        log.warning("Failed to update. Will retry up to %d more times: %s" % (10 - i - 1, e))
+                    else:
+                        raise
 
         log.info("Done running update on %d files. Models will now update!" % len(labeled_files))
 
@@ -856,12 +905,12 @@ class Impira(Tool):
                 "url": row["File"]["download_url"],
                 "name": row_to_fname(row, use_original_filenames),
                 "record": {
-                    "Doc tag": DocumentTagLabel(value=collection_names[file_membership[row["uid"]][0]])
+                    "Doc tag": DocumentTagLabel(value=[collection_names[x] for x in file_membership[row["uid"]]])
                     if row["uid"] in file_membership and len(file_membership[row["uid"]]) == 1
-                    else DocumentTagLabel(value=None)
+                    else DocumentTagLabel(value=[])
                     if row["uid"] not in file_membership
                     else None,
-                    "Sampled tag": DocumentTagLabel(value=collection_names[sampled[row["uid"]]])
+                    "Sampled tag": DocumentTagLabel(value=[collection_names[sampled[row["uid"]]]])
                     if row["uid"] in sampled
                     else None,
                 },
