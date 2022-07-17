@@ -268,7 +268,7 @@ def generate_labels(
                 ModelVersion=model_versions.get(field_name, 0),
             )
             labels[field_name] = scalar_label
-        elif value is not None:
+        elif value is not None and value.value is not None:
             w = find_overlapping_words(value, words)
             candidate_entities = [e for x in w for e in entity_map.find_entities([x], match_supersets=True)]
             target_type = label_name_to_inferred_field_type(type(value).__name__)
@@ -564,7 +564,7 @@ class Impira(Tool):
             all_fnames = [e.fname.name for e in entries]
             while True:
                 uids = {}
-                for b in batch(all_fnames, batch_size):
+                for b in batch(all_fnames, 50):
                     uids.update(
                         {
                             r["name"]: r
@@ -738,26 +738,6 @@ class Impira(Tool):
             ),
         )
 
-        log.info("Running expected increment query %s", expected_increment_query)
-        increment = conn.query(expected_increment_query)["data"][0]["increment"]
-
-        mv_query = "@`file_collections::%s`[sum_mv: %s]" % (
-            collection_uid,
-            " + ".join(["0"] + ["SUM(`%s`.`ModelVersion`)" % (f.name) for f in fields_to_update]),
-        )
-
-        # Unfortunately, polling doesn't work for "min" queries, so we just run a normal query
-        log.info("Running model version query %s", mv_query)
-        resp = conn.query(mv_query)["data"][0]
-        target = resp["sum_mv"] + increment
-
-        log.info(
-            "Current minimum model version total %s. Target is %s across %d fields",
-            resp["sum_mv"],
-            target,
-            len(fields_to_update),
-        )
-
         log.info("Running update on %d files" % len(labeled_files))
 
         # Batch the updates into chunks and retry a few times because of deadlock-issues
@@ -766,12 +746,13 @@ class Impira(Tool):
             if b_idx < first_batch - 1:
                 continue
             log.info("Updating batch %d/%d", b_idx + 1, len(batches))
+            processed = 0
             for i in range(RETRIES):
                 if i > 0:
                     log.warning("Sleeping for 1 second...")
                     time.sleep(1)
                 try:
-                    mini_batches = [x for x in batch(b, n=max(1, batch_size // (i // 2 + 1)))]
+                    mini_batches = [x for x in batch(b[processed:], n=max(1, batch_size // (i + 1)))]
 
                     for mb_idx, mb in enumerate(mini_batches):
                         if len(mini_batches) > 1:
@@ -790,6 +771,7 @@ class Impira(Tool):
                                 for (fd, ld) in mb
                             ],
                         )
+                        processed += len(mb)
                     if i > 0:
                         log.info("Success!")
                     break
@@ -800,28 +782,6 @@ class Impira(Tool):
                         raise
 
         log.info("Done running update on %d files. Models will now update!" % len(labeled_files))
-
-        # This code is currently too brittle to be useful, since model versions aren't a reliable way of knowing
-        # when evaluation has finished. We can reintroduce it once we have a better strategy in place.
-        #
-        #        while True:
-        #            resp = conn.query(
-        #                mv_query + " [sum_mv] sum_mv >= %d" % (target),
-        #            )
-        #            try:
-        #                resp = resp["data"][0]
-        #                break
-        #            except Exception as e:
-        #                time.sleep(1)
-        #                continue
-        #
-        #        # TODO: We know this undercounts a bit, so we should probably check the "spinner" query too
-        #
-        #        log.debug(
-        #            "Current minimum model version %s",
-        #            resp["sum_mv"],
-        #        )
-        log.info("Done!")
 
     @validate_arguments
     def snapshot(
