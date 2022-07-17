@@ -39,6 +39,13 @@ def build_parser(subparsers, parent_parser):
     )
 
     parser.add_argument(
+        "--exclude-collection",
+        default=[],
+        nargs="*",
+        help="Collection ids to exclude",
+    )
+
+    parser.add_argument(
         "--download-files",
         "-s",
         default=False,
@@ -105,7 +112,9 @@ def main(args):
 
     if args.all_collections:
         conn = impira._conn()
-        collections = [r["uid"] for r in conn.query("@file_collections[uid]")["data"]]
+        collections = [
+            r["uid"] for r in conn.query("@file_collections[uid]")["data"] if r["uid"] not in args.exclude_collection
+        ]
     else:
         collections = [args.collection]
 

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import time
 from uuid import uuid4
 
-from impira import Impira as ImpiraAPI, FieldType, InferredFieldType, parse_date, APIError
+from .. import Impira as ImpiraAPI, FieldType, InferredFieldType, parse_date, APIError
 
 from ..cmd.utils import environ_or_required
 from ..schema import schema_to_model
@@ -318,6 +318,7 @@ def upload_and_retrieve_text(conn, collection_uid, f, skip_downloading_text):
     existing = conn.query(
         "@`file_collections::%s`%s name='%s' File.IsPreprocessed=true"
         % (collection_uid, data_projection(skip_downloading_text), f["name"].replace("'", "\\'")),
+        timeout=360,
     )["data"]
     if len(existing) > 0:
         return existing[0]
@@ -330,7 +331,7 @@ def upload_and_retrieve_text(conn, collection_uid, f, skip_downloading_text):
                 "@`file_collections::%s`%s uid='%s' File.IsPreprocessed=true"
                 % (collection_uid, data_projection(skip_downloading_text), uids[0]),
                 mode="poll",
-                timeout=60,
+                timeout=360,
             )
 
             for d in resp["data"] or []:
@@ -427,10 +428,10 @@ def row_to_record(row, doc_schema: DocSchema, allow_predictions: bool) -> Any:
     d = {}
     for field_name, field_type in doc_schema.fields.items():
         label = None
-        field = row.get(field_name, None)
+        field = row.get(field_name)
         if isinstance(field_type, DocSchema):
             label = None
-            if field.get("Label") and field.get("Label").get("Value"):
+            if field is not None and field.get("Label") and field.get("Label").get("Value"):
                 table_rows = [row_label["Label"]["Value"] for row_label in field["Label"]["Value"]]
                 label = [
                     x for x in [row_to_record(tr, field_type, allow_predictions) for tr in table_rows] if x is not None
@@ -517,9 +518,10 @@ class Impira(Tool):
         skip_new_fields=False,
         collection_name=None,
         max_fields=-1,
+        first_file=0,
         max_files=-1,
         batch_size=50,
-        first_batch=1,
+        first_batch=0,
     ):
         log = self._log()
 
@@ -548,9 +550,10 @@ class Impira(Tool):
 
         assert (not add_files) or skip_upload, "Cannot add existing files to the collection unless you skip upload"
 
+        new_entries = [e for e in entries]
+        new_entries.sort(key=lambda e: e.record is None)  # Place the rows with records up front
+        entries = new_entries[first_file:]
         if max_files != -1:
-            new_entries = [e for e in entries]
-            new_entries.sort(key=lambda e: e.record is None)  # Place the rows with records up front
             entries = new_entries[:max_files]
 
         if not skip_upload:
@@ -720,7 +723,8 @@ class Impira(Tool):
         log.info("Creating fields: %s" % (field_names_to_update))
 
         if len(field_specs) > 0:
-            conn.create_fields(collection_uid, field_specs)
+            for b in batch(field_specs, n=5):
+                conn.create_fields(collection_uid, b)
 
         fields_to_update = [f for f in schema if len(f.path) == 0 and f.name in field_names_to_update]
 
@@ -729,9 +733,9 @@ class Impira(Tool):
         # Batch the updates into chunks and retry a few times because of deadlock-issues
         batches = [b for b in batch([x for x in zip(labeled_files, labels)], n=batch_size)]
         for b_idx, b in enumerate(batches):
-            if b_idx < first_batch - 1:
+            if b_idx < first_batch:
                 continue
-            log.info("Updating batch %d/%d", b_idx + 1, len(batches))
+            log.info("Updating batch %d/%d", b_idx, len(batches) - 1)
             processed = 0
             for i in range(RETRIES):
                 if i > 0:
@@ -742,7 +746,7 @@ class Impira(Tool):
 
                     for mb_idx, mb in enumerate(mini_batches):
                         if len(mini_batches) > 1:
-                            log.info("Doing a mini-update (attempt %d): %d/%d", i + 1, mb_idx + 1, len(mini_batches))
+                            log.info("Doing a mini-update (attempt %d): %d/%d", i, mb_idx, len(mini_batches) - 1)
                         conn.update(
                             collection_uid,
                             [

@@ -77,6 +77,12 @@ def build_parser(subparsers, parent_parser):
         help="Only create up to this many fields",
     )
     parser.add_argument(
+        "--first-file",
+        default=-0,
+        type=int,
+        help="Start with this file (indexed by 0). Useful for pagination.",
+    )
+    parser.add_argument(
         "--max-files",
         default=-1,
         type=int,
@@ -90,7 +96,7 @@ def build_parser(subparsers, parent_parser):
     )
     parser.add_argument(
         "--first-batch",
-        default=1,
+        default=0,
         type=int,
         help="First batch to start (this is useful for resuming)",
     )
@@ -131,6 +137,7 @@ def main(args):
         skip_new_fields=args.skip_new_fields,
         collection_name=args.name,
         max_fields=args.max_fields,
+        first_file=args.first_file,
         max_files=args.max_files,
         batch_size=args.batch_size,
         first_batch=args.first_batch,
