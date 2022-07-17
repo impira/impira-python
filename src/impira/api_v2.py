@@ -584,13 +584,12 @@ class Impira:
                 args["timeout"] = math.ceil(timeout - time_since)
                 logging.warning("Request timed out, but still have %gs left. Will try again..." % (args["timeout"]))
                 continue
-            elif resp.status_code == HTTPStatus.TOO_MANY_REQUESTS and time_since < timeout - 0.1:
-                args["timeout"] = math.ceil(timeout - 0.1 - time_since)
+            elif resp.status_code == HTTPStatus.TOO_MANY_REQUESTS and time_since < timeout - 1:
+                args["timeout"] = math.ceil(timeout - 1 - time_since)
                 logging.warning(
-                    "Hit a rate limit, but still have %gs left. Will sleep for 100ms and try again..."
-                    % (args["timeout"])
+                    "Hit a rate limit, but still have %gs left. Will sleep for 1s and try again..." % (args["timeout"])
                 )
-                time.sleep(0.1)
+                time.sleep(1)
             else:
                 raise APIError(resp)
 
