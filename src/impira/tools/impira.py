@@ -127,6 +127,7 @@ class ScalarLabel(BaseModel):
     class L(BaseModel):
         Source: Optional[Union[CheckboxSource, List[ImpiraWord]]]
         IsPrediction: bool = False
+        IsConfident: Optional[bool] = None
         Value: Optional[Any]
 
     class C(BaseModel):
@@ -143,6 +144,7 @@ class ScalarLabel(BaseModel):
 class RowLabel(BaseModel):
     class L(BaseModel):
         IsPrediction: bool
+        IsConfident: Optional[bool] = None
         Value: Dict[str, ScalarLabel]
 
     Label: L
@@ -391,7 +393,6 @@ def fields_to_doc_schema(fields) -> DocSchema:
 
 @validate_arguments
 def maybe_get_location(label: ScalarLabel, field_type: str) -> Optional[Location]:
-
     if label.Label.Source is None:
         return None
 
@@ -422,19 +423,23 @@ def maybe_get_value(label: ScalarLabel, field_type: str) -> Optional[Any]:
 
 
 @validate_arguments
-def row_to_record(row, doc_schema: DocSchema) -> Any:
+def row_to_record(row, doc_schema: DocSchema, allow_predictions: bool) -> Any:
     d = {}
     for field_name, field_type in doc_schema.fields.items():
         label = None
         field = row.get(field_name, None)
-        if isinstance(field_type, DocSchema) and field.get("Label") and field.get("Label").get("Value"):
-            table_rows = [row_label["Label"]["Value"] for row_label in field["Label"]["Value"]]
-            label = [x for x in [row_to_record(tr, field_type) for tr in table_rows] if x is not None]
+        if isinstance(field_type, DocSchema):
+            label = None
+            if field.get("Label") and field.get("Label").get("Value"):
+                table_rows = [row_label["Label"]["Value"] for row_label in field["Label"]["Value"]]
+                label = [
+                    x for x in [row_to_record(tr, field_type, allow_predictions) for tr in table_rows] if x is not None
+                ]
             if not label:
                 continue
         elif field is not None and field.get("Label") is not None:
             impira_label = ScalarLabel.parse_obj(field)
-            if impira_label.Label.IsPrediction:
+            if impira_label.Label.IsPrediction and not (allow_predictions and impira_label.Label.IsConfident):
                 continue
 
             location = maybe_get_location(impira_label, field_type)
@@ -719,25 +724,6 @@ class Impira(Tool):
 
         fields_to_update = [f for f in schema if len(f.path) == 0 and f.name in field_names_to_update]
 
-        # Snapshot the model version and its cursor for new fields. Old fields are not going to change
-        # their values (unless the labels have changed, which is not something we distinguish).
-        expected_increment_query = "@`file_collections::%s`[increment: %s]" % (
-            collection_uid,
-            " + ".join(
-                ["0"]
-                + [
-                    "(SUM(IF(`%s`.Label.IsPrediction or `%s`=null, 1, %d-`%s`.ModelVersion)))"
-                    % (
-                        f.name,
-                        f.name,
-                        model_versions.get(f.name, 0),
-                        f.name,
-                    )
-                    for (f) in fields_to_update
-                ]
-            ),
-        )
-
         log.info("Running update on %d files" % len(labeled_files))
 
         # Batch the updates into chunks and retry a few times because of deadlock-issues
@@ -785,22 +771,35 @@ class Impira(Tool):
 
     @validate_arguments
     def snapshot(
-        self, collection_uid: str, use_original_filenames=False, labeled_files_only=False, filter_collection_uid=None
+        self,
+        collection_uid: str,
+        use_original_filenames=False,
+        labeled_files_only=False,
+        filter_collection_uid=None,
+        label_filter=None,
     ):
         log = self._log()
 
         conn = self._conn()
 
-        filt = f"-join_one(`file_collections::{filter_collection_uid}`, uid, uid)=null" if filter_collection_uid else ""
+        collection_filter = (
+            f"-join_one(`file_collections::{filter_collection_uid}`, uid, uid)=null" if filter_collection_uid else ""
+        )
 
-        resp = conn.query("@`file_collections::%s` %s" % (collection_uid, filt))
+        allow_predictions = f"{label_filter}" if label_filter else "false"
+
+        resp = conn.query(
+            "@`file_collections::%s`[.*, __allow_predictions: %s] %s"
+            % (collection_uid, allow_predictions, collection_filter)
+        )
 
         doc_schema = fields_to_doc_schema(filter_inferred_fields(resp["schema"]["children"]))
+
         records = [
             {
                 "url": row["File"]["download_url"],
                 "name": row_to_fname(row, use_original_filenames),
-                "record": row_to_record(row, doc_schema),
+                "record": row_to_record(row, doc_schema, bool(row["__allow_predictions"])),
             }
             for row in resp["data"]
         ]

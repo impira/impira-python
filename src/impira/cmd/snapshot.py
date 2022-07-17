@@ -67,6 +67,13 @@ def build_parser(subparsers, parent_parser):
         help="Only snapshot files that are also in this collection uid",
     )
 
+    parser.add_argument(
+        "--label-filter",
+        default=None,
+        type=str,
+        help="By default, snapshot only uses confirmed labels. This filter will treat any record that matches as confirmed",
+    )
+
     parser.set_defaults(func=main)
     return parser
 
@@ -111,6 +118,7 @@ def main(args):
             use_original_filenames=args.original_names,
             labeled_files_only=args.labeled_files_only,
             filter_collection_uid=args.filter_collection,
+            label_filter=args.label_filter,
         )
         schema.fields.update(collection_schema.fields)
         records.extend(collection_records)
