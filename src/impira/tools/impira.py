@@ -3,7 +3,8 @@ from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 import json
 import os
-from pydantic import BaseModel, validate_arguments
+import pathlib
+from pydantic import BaseModel, validate_arguments, ValidationError
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import time
 from uuid import uuid4
@@ -314,6 +315,81 @@ def data_projection(skip_downloading_text):
         return "[uid, name: File.name, text: File.text, entities: File.ner.entities]"
 
 
+def escape_name(name):
+    return name.replace("'", "\\'")
+
+
+def upload_files(conn, collection_uid, b):
+    names = ", ".join([f"'{escape_name(f['name'])}'" for f in b])
+    files_by_name = {}
+    for f in b:
+        files_by_name[f["name"]] = f
+
+    all_uids = {}
+    existing = conn.query(f"@`file_collections::{collection_uid}`[uid, name: File.name] in(name, {names})")["data"]
+    for e in existing:
+        all_uids[e["name"]] = e["uid"]
+        del files_by_name[e["name"]]
+
+    fb_v = [x for x in files_by_name.items()]
+    upload_uids = conn.upload_files(collection_uid, [f for (_, f) in fb_v])
+    for (uid, (fname, _)) in zip(upload_uids, fb_v):
+        all_uids[fname] = uid
+
+    uids = set(upload_uids)
+    cursor = None
+    for i in range(10):
+        if len(uids) == 0:
+            return [all_uids[f["name"]] for f in b]
+
+        uid_filter = "in(uid, %s)" % (", ".join(['"%s"' % u for u in uids]))
+        resp = conn.query(
+            f"@`file_collections::{collection_uid}`[uid] {uid_filter} File.IsPreprocessed=true",
+            mode="poll",
+            timeout=360,
+            cursor=cursor,
+        )
+        cursor = resp["cursor"]
+
+        for d in resp["data"] or []:
+            if d["action"] != "insert":
+                continue
+
+            uid = d["data"]["uid"]
+            uids.remove(uid)
+    assert False, "Poll timed out after an hour"
+
+
+def retrieve_text(conn, collection_uid, uid_batch, skip_downloading_text):
+    results = {}
+
+    uids = set(uid_batch)
+    cursor = None
+    for i in range(10):
+        if len(uids) == 0:
+            return [results[uid] for uid in uid_batch]
+
+        uid_filter = "in(uid, %s)" % (", ".join(['"%s"' % u for u in uids]))
+        resp = conn.query(
+            f"@`file_collections::{collection_uid}`{data_projection(skip_downloading_text)} {uid_filter} File.IsPreprocessed=true",
+            mode="poll",
+            timeout=360,
+            cursor=cursor,
+        )
+        cursor = resp["cursor"]
+
+        for d in resp["data"] or []:
+            if d["action"] != "insert":
+                continue
+
+            uid = d["data"]["uid"]
+            results[uid] = d["data"]
+            uids.remove(uid)
+
+    assert False, "Poll timed out after an hour"
+
+
+# NOTE: Deprecated
 def upload_and_retrieve_text(conn, collection_uid, f, skip_downloading_text):
     existing = conn.query(
         "@`file_collections::%s`%s name='%s' File.IsPreprocessed=true"
@@ -358,9 +434,16 @@ def fields_to_doc_schema(fields) -> DocSchema:
     ret = {}
     for f in fields:
         comment = json.loads(f["comment"])
-        trainer = (
-            InferredFieldType.match_trainer(comment["infer_func"]["trainer_name"]) if "infer_func" in comment else None
-        )
+        try:
+            trainer = (
+                InferredFieldType.match_trainer(comment["infer_func"]["trainer_name"])
+                if "infer_func" in comment
+                else None
+            )
+        except AssertionError:
+            # If this is an unknown trainer, e.g. table v1, just skip the field
+            continue
+
         t = None
         if trainer == InferredFieldType.table:
             sub_fields = find_path(f, "Label", "Value", "Label", "Value").get("children", [])
@@ -413,7 +496,6 @@ def maybe_get_location(label: ScalarLabel, field_type: str) -> Optional[Location
 
 @validate_arguments
 def maybe_get_value(label: ScalarLabel, field_type: str) -> Optional[Any]:
-
     value = label.Label.Value
     if field_type in ("CheckboxLabel", "SignatureLabel"):
         value = value["State"]
@@ -424,7 +506,7 @@ def maybe_get_value(label: ScalarLabel, field_type: str) -> Optional[Any]:
 
 
 @validate_arguments
-def row_to_record(row, doc_schema: DocSchema, allow_predictions: bool) -> Any:
+def row_to_record(log, row, doc_schema: DocSchema, allow_predictions: bool) -> Any:
     d = {}
     for field_name, field_type in doc_schema.fields.items():
         label = None
@@ -434,17 +516,31 @@ def row_to_record(row, doc_schema: DocSchema, allow_predictions: bool) -> Any:
             if field is not None and field.get("Label") and field.get("Label").get("Value"):
                 table_rows = [row_label["Label"]["Value"] for row_label in field["Label"]["Value"]]
                 label = [
-                    x for x in [row_to_record(tr, field_type, allow_predictions) for tr in table_rows] if x is not None
+                    x
+                    for x in [row_to_record(log, tr, field_type, allow_predictions) for tr in table_rows]
+                    if x is not None
                 ]
             if not label:
                 continue
         elif field is not None and field.get("Label") is not None:
-            impira_label = ScalarLabel.parse_obj(field)
+            try:
+                impira_label = ScalarLabel.parse_obj(field)
+            except ValidationError:
+                log.warning(f"Record with uid={row['uid']} has an invalid label for field `{field_name}`. Skipping...")
+                continue
+
             if impira_label.Label.IsPrediction and not (allow_predictions and impira_label.Label.IsConfident):
                 continue
 
             location = maybe_get_location(impira_label, field_type)
-            value = maybe_get_value(impira_label, field_type)
+
+            try:
+                value = maybe_get_value(impira_label, field_type)
+            except Exception as e:
+                log.warning(
+                    f"Record with uid={row['uid']} has an invalid label for field `{field_name}`. Failed to parse: {e}. Skipping..."
+                )
+                continue
 
             label = {"location": location, "value": value}
 
@@ -522,8 +618,12 @@ class Impira(Tool):
         max_files=-1,
         batch_size=50,
         first_batch=0,
+        cache_dir: pathlib.Path = None,
     ):
         log = self._log()
+
+        if cache_dir:
+            cache_dir.mkdir(parents=True, exist_ok=True)
 
         schema = generate_schema(doc_schema)
 
@@ -561,27 +661,69 @@ class Impira(Tool):
 
             log.info("Uploading %d files", len(files))
             with ThreadPoolExecutor(max_workers=parallelism) as t:
+                uid_batches = [
+                    x for x in t.map(lambda f: upload_files(self._conn(), collection_uid, f), batch(files, 20))
+                ]
+
+            log.info("Retrieving text for %d files", len(files))
+            with ThreadPoolExecutor(max_workers=parallelism) as t:
                 file_data = [
                     x
-                    for x in t.map(
-                        lambda f: upload_and_retrieve_text(self._conn(), collection_uid, f, skip_downloading_text),
-                        files,
+                    for results_batch in t.map(
+                        lambda b: retrieve_text(self._conn(), collection_uid, b, skip_downloading_text),
+                        uid_batches,
                     )
+                    for x in results_batch
                 ]
+
+            if cache_dir:
+                for f, record in zip(files, file_data):
+                    cache_file = cache_dir / f"{f['name']}.json"
+                    with open(cache_file, "w") as f:
+                        json.dump(record, f)
         else:
             all_fnames = [e.fname.name for e in entries]
+            cached = 0
+            log.info("Retrieving text for %d files", len(all_fnames))
             while True:
                 uids = {}
                 for b in batch(all_fnames, 50):
-                    uids.update(
+                    remaining = []
+
+                    if cache_dir:
+                        for name in b:
+                            cache_file = cache_dir / f"{name}.json"
+                            if cache_file.exists():
+                                with open(cache_file, "r") as f:
+                                    record = json.load(f)
+                                    if record is not None:
+                                        uids[name] = record
+                                cached += 1
+                            else:
+                                remaining.append(name)
+
+                    new_records = (
                         {
                             r["name"]: r
                             for r in conn.query(
                                 "@`file_collections::%s`%s %s"
-                                % (collection_uid, data_projection(skip_downloading_text), fname_filter(b))
+                                % (collection_uid, data_projection(skip_downloading_text), fname_filter(remaining))
                             )["data"]
                         }
+                        if remaining
+                        else {}
                     )
+
+                    uids.update(new_records)
+                    if cache_dir:
+                        for fname in remaining:
+                            cache_file = cache_dir / f"{fname}.json"
+                            if fname in new_records:
+                                with open(cache_file, "w") as f:
+                                    json.dump(new_records[fname], f)
+                            else:
+                                with open(cache_file, "w") as f:
+                                    json.dump(None, f)
 
                 if add_files:
                     missing_files = [e.fname.name for e in entries if e.fname.name not in uids]
@@ -606,6 +748,7 @@ class Impira(Tool):
                 else:
                     break
 
+            log.info("Done retrieving text for %d files (%d cached, %d final)", len(all_fnames), cached, len(uids))
             if skip_missing_files:
                 entries = [e for e in entries if e.fname.name in uids]
 
@@ -747,20 +890,18 @@ class Impira(Tool):
                     for mb_idx, mb in enumerate(mini_batches):
                         if len(mini_batches) > 1:
                             log.info("Doing a mini-update (attempt %d): %d/%d", i, mb_idx, len(mini_batches) - 1)
-                        conn.update(
-                            collection_uid,
-                            [
-                                {
-                                    **{"uid": fd["uid"]},
-                                    **{
-                                        field_path: label.dict(exclude_none=True)
-                                        for field_path, label in ld.items()
-                                        if field_path in field_names_to_update
-                                    },
-                                }
-                                for (fd, ld) in mb
-                            ],
-                        )
+                        update_record = [
+                            {
+                                **{"uid": fd["uid"]},
+                                **{
+                                    field_path: label.dict(exclude_none=True)
+                                    for field_path, label in ld.items()
+                                    if field_path in field_names_to_update
+                                },
+                            }
+                            for (fd, ld) in mb
+                        ]
+                        conn.update(collection_uid, update_record)
                         processed += len(mb)
                     if i > 0:
                         log.info("Success!")
@@ -803,7 +944,7 @@ class Impira(Tool):
             {
                 "url": row["File"]["download_url"],
                 "name": row_to_fname(row, use_original_filenames),
-                "record": row_to_record(row, doc_schema, bool(row["__allow_predictions"])),
+                "record": row_to_record(log, row, doc_schema, bool(row["__allow_predictions"])),
             }
             for row in resp["data"]
         ]

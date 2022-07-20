@@ -141,4 +141,5 @@ def main(args):
         max_files=args.max_files,
         batch_size=args.batch_size,
         first_batch=args.first_batch,
+        cache_dir=workdir / "cache",
     )

@@ -5,8 +5,8 @@ api_v2.py
 The core SDK module
 """
 
-
 from datetime import datetime
+from dateutil.parser import parse as dateparse
 from enum import Enum
 from http import HTTPStatus
 import json
@@ -180,8 +180,9 @@ def parse_date(s: str) -> datetime:
             if len(e.args) > 0 and e.args[0].startswith("unconverted data remains: "):
                 prefix = s[: -(len(e.args[0]) - 26)]
                 return datetime.strptime(prefix, fmt)
-            elif i == len(FMTS) - 1:
-                raise
+
+    # As a last ditch effort, try using dateparse
+    return dateparse(s)
 
 
 class Impira:
