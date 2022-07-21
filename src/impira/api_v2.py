@@ -278,6 +278,7 @@ class Impira:
 
         resp = self.session.patch(
             self._build_resource_url("fc", collection_id),
+            params={"assert_updated": False},
             json={"data": data},
         )
 
