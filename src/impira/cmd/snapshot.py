@@ -26,8 +26,8 @@ def build_parser(subparsers, parent_parser):
 
     parser.add_argument(
         "--collection",
-        default=None,
-        type=str,
+        default=[],
+        nargs="*",
         help="uid of the collection to snapshot",
     )
 
@@ -36,6 +36,13 @@ def build_parser(subparsers, parent_parser):
         default=False,
         action="store_true",
         help="Snapshot all collections",
+    )
+
+    parser.add_argument(
+        "--collection-name-filter",
+        default=None,
+        type=str,
+        help="Filter for name of collections to include",
     )
 
     parser.add_argument(
@@ -108,15 +115,19 @@ def main(args):
         return
 
     impira = Impira(config=Impira.Config(**vars(args)))
-    workdir = pathlib.Path(args.data) / "capture" / f"{args.collection}-{uuid4().hex[:4]}"
 
     if args.all_collections:
         conn = impira._conn()
+        name_filter = f"name:'{args.collection_name_filter}'" if args.collection_name_filter else ""
         collections = [
-            r["uid"] for r in conn.query("@file_collections[uid]")["data"] if r["uid"] not in args.exclude_collection
+            r["uid"]
+            for r in conn.query(f"@file_collections[uid] {name_filter}")["data"]
+            if r["uid"] not in args.exclude_collection
         ]
     else:
-        collections = [args.collection]
+        collections = [c for c in args.collection]
+
+    workdir = pathlib.Path(args.data) / "capture" / f"{collections[0]}-{uuid4().hex[:4]}"
 
     schema = DocSchema(fields={})
     records = []

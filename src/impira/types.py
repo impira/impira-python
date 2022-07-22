@@ -63,7 +63,7 @@ class ScalarLabel(BaseModel):
 
 
 class NumberLabel(ScalarLabel):
-    value: Optional[Union[StrictInt, StrictFloat, float]]
+    value: Optional[Union[StrictInt, StrictFloat, float, str]]
 
     def fmt(self):
         return str(self.value)

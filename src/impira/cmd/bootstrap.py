@@ -117,11 +117,13 @@ def main(args):
     manifest = DocManifest.parse_file(manifest_file)
     M = schema_to_model(manifest.doc_schema)
 
+    all_docs = []
     for doc in manifest.docs:
         doc.fname = workdir / doc.fname
-        assert doc.url is not None or doc.fname.exists()
-        if doc.record is not None:
-            doc.record = M.parse_obj(doc.record)
+        if doc.url is not None or doc.fname.exists():
+            all_docs.append(doc)
+            if doc.record is not None:
+                doc.record = M.parse_obj(doc.record)
 
     tool = Impira(config=Impira.Config(**vars(args)))
     tool.run(

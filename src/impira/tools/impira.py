@@ -89,9 +89,9 @@ class ImpiraWord(BaseModel):
     confidence: float
     location: Location
     processed_word: str
-    rotated: bool
-    source: str
-    uid: str
+    rotated: Optional[bool]
+    source: Optional[str]
+    uid: Optional[str]
     word: str
 
 
@@ -525,8 +525,10 @@ def row_to_record(log, row, doc_schema: DocSchema, allow_predictions: bool) -> A
         elif field is not None and field.get("Label") is not None:
             try:
                 impira_label = ScalarLabel.parse_obj(field)
-            except ValidationError:
-                log.warning(f"Record with uid={row['uid']} has an invalid label for field `{field_name}`. Skipping...")
+            except ValidationError as e:
+                log.warning(
+                    f"Record with uid={row['uid']} has an invalid label for field `{field_name}`: {e}. Skipping..."
+                )
                 continue
 
             if impira_label.Label.IsPrediction and not (allow_predictions and impira_label.Label.IsConfident):
@@ -550,7 +552,11 @@ def row_to_record(log, row, doc_schema: DocSchema, allow_predictions: bool) -> A
         return None
 
     M = schema_to_model(doc_schema)
-    return M(**d)
+    try:
+        return M(**d)
+    except ValidationError as e:
+        log.warning(f"Record with uid={row['uid']} has an invalid label: {e}")
+        return None
 
 
 @validate_arguments
@@ -783,18 +789,22 @@ class Impira(Tool):
         }
 
         labels = []
-        for e, fd in zip(labeled_entries, labeled_files):
-            entity_map = EntityMap(entities=fd["entities"])
-            labels.append(
-                generate_labels(
-                    log,
-                    fd["name"],
-                    e.record,
-                    fd["text"]["words"],
-                    entity_map,
-                    model_versions,
+        for i, (e, fd) in enumerate(zip(labeled_entries, labeled_files)):
+            try:
+                entity_map = EntityMap(entities=fd["entities"] or [])
+                labels.append(
+                    generate_labels(
+                        log,
+                        fd["name"],
+                        e.record,
+                        fd["text"]["words"],
+                        entity_map,
+                        model_versions,
+                    )
                 )
-            )
+            except Exception as e:
+                log.warning(f"Unable to process record (uid={fd['uid']})")
+                labels.append({})
 
         schema_resp = conn.query("@file_collections::%s limit:0" % (collection_uid))
         current_fields = fields_to_doc_schema(filter_inferred_fields(schema_resp["schema"]["children"])).fields
@@ -957,21 +967,29 @@ class Impira(Tool):
         return doc_schema, records
 
     @validate_arguments
-    def snapshot_collections(self, use_original_filenames=False, max_files_per_collection=-1, num_samples=2):
+    def snapshot_collections(
+        self, use_original_filenames=False, max_files_per_collection=-1, num_samples=2, collection_filter=None
+    ):
         log = self._log()
+
+        full_collection_filter = "-collection=null"
+        if collection_filter:
+            full_collection_filter += " in(collection_uid, %s)" % (
+                ", ".join(["'%s'" % (uid) for uid in collection_filter])
+            )
 
         conn = self._conn()
         files = conn.query("@files[uid, File: File[download_url, name]] -File.download_url=null -`File type`=Data")[
             "data"
         ]
         collections = conn.query(
-            "@file_collection_contents[collection_uid, files: array_agg(file_uid)] -collection=null"
+            f"@file_collection_contents[collection_uid, files: array_agg(file_uid)] {full_collection_filter}"
         )["data"]
 
         collection_names = {}
-        for row in conn.query("@file_collection_contents[collection_uid, name: collection.name] -collection=null")[
-            "data"
-        ]:
+        for row in conn.query(
+            f"@file_collection_contents[collection_uid, name: collection.name] {full_collection_filter}"
+        )["data"]:
             collection_names[row["collection_uid"]] = row["name"]
 
         file_membership = {}

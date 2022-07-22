@@ -53,6 +53,13 @@ def build_parser(subparsers, parent_parser):
         help="The number of confirmed document tag labels that get created from each collection.",
     )
 
+    parser.add_argument(
+        "--collection",
+        default=[],
+        nargs="*",
+        help="Optional uid of one or more collections to snapshot",
+    )
+
     parser.set_defaults(func=main)
     return parser
 
@@ -65,6 +72,7 @@ def main(args):
         use_original_filenames=args.original_names,
         max_files_per_collection=args.max_files_per_collection,
         num_samples=args.samples_per_collection,
+        collection_filter=args.collection if args.collection else None,
     )
 
     log.info("Downloading %d files to %s", len(records), workdir)
