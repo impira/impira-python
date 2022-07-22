@@ -39,7 +39,7 @@ if __name__ == "__main__":
     collection_uid = conn.get_collection_uid(args.collection_name)
 
     schema = conn.query(f"@`file_collections::{collection_uid}` limit:0")["schema"]
-    exclude_fields = set(args.exclude)
+    exclude_fields = set(args.exclude or [])
     inferred_fields = [x["name"] for x in filter_inferred_fields(schema["children"]) if x["name"] not in exclude_fields]
     if args.limit:
         inferred_fields = inferred_fields[: args.limit]
