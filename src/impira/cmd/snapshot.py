@@ -110,7 +110,7 @@ def download_files(records, parallelism, workdir):
 
 
 def main(args):
-    if (args.collection is None and not args.all_collections) or (args.collection is not None and args.all_collections):
+    if (not args.collection and not args.all_collections) or (args.collection and args.all_collections):
         log.fatal("Must specify exactly one of --collection or --all-collections")
         return
 
