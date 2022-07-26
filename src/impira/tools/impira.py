@@ -514,7 +514,11 @@ def row_to_record(log, row, doc_schema: DocSchema, allow_predictions: bool) -> A
         if isinstance(field_type, DocSchema):
             label = None
             if field is not None and field.get("Label") and field.get("Label").get("Value"):
-                table_rows = [row_label["Label"]["Value"] for row_label in field["Label"]["Value"]]
+                table_rows = [
+                    row_label["Label"]["Value"]
+                    for row_label in field["Label"]["Value"]
+                    if row_label and row_label.get("Label")
+                ]
                 label = [
                     x
                     for x in [row_to_record(log, tr, field_type, allow_predictions) for tr in table_rows]
