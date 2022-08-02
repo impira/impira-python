@@ -14,6 +14,7 @@ class Location(BaseModel):
     height: float = 0
     width: float = 0
     page: int = 0
+    uids: List[str] = []
 
     def expand(self):
         return Location(

@@ -203,9 +203,14 @@ class EntityMap(BaseModel):
 
 
 @validate_arguments
-def find_overlapping_words(value, words: List[ImpiraWord]):
+def find_overlapping_words(value, word_map: Dict[str, ImpiraWord], words: List[ImpiraWord]):
     if value.location is None:
         return []
+
+    if len(value.location.uids) > 0:
+        uid_words = [word_map[uid] for uid in value.location.uids if uid in word_map]
+        if len(uid_words) == len(value.location.uids):
+            return uid_words
 
     return [
         word
@@ -221,6 +226,7 @@ def generate_labels(
     file_name: str,
     record,
     words: List[ImpiraWord],
+    word_map: Dict[str, ImpiraWord],
     entity_map: EntityMap,
     model_versions: Dict[str, int],
     empty_labels: bool = False,
@@ -228,7 +234,10 @@ def generate_labels(
     labels = {}
     for field_name, value in dict(record).items():
         if isinstance(value, List):
-            rows = [generate_labels(log, file_name, v, words, entity_map, model_versions, empty_labels) for v in value]
+            rows = [
+                generate_labels(log, file_name, v, words, word_map, entity_map, model_versions, empty_labels)
+                for v in value
+            ]
             row_labels = [
                 RowLabel(
                     Label=RowLabel.L(
@@ -273,7 +282,7 @@ def generate_labels(
             )
             labels[field_name] = scalar_label
         elif value is not None and value.value is not None:
-            w = find_overlapping_words(value, words)
+            w = find_overlapping_words(value, word_map, words)
             candidate_entities = [e for x in w for e in entity_map.find_entities([x], match_supersets=True)]
             target_type = label_name_to_inferred_field_type(type(value).__name__)
 
@@ -488,17 +497,22 @@ def maybe_get_location(label: ScalarLabel, field_type: str) -> Optional[Location
     if label.Label.Source is None:
         return None
 
+    uids = []
+
     if field_type in ("CheckboxLabel", "SignatureLabel"):
         locations = label.Label.Source.BBoxes
     elif field_type in ("TextLabel", "NumberLabel", "TimestampLabel"):
         locations = [l.location for l in label.Label.Source]
+        uids = [l.uid for l in label.Label.Source]
     elif field_type == "DocumentTagLabel":
         locations = None
     else:
         raise ValueError(f"Unable to retrieve location from label of type {field_type} ({label = })")
 
     if locations:
-        return combine_locations(locations)
+        loc = combine_locations(locations)
+        loc.uids = uids
+        return loc
     return None
 
 
@@ -813,6 +827,8 @@ class Impira(Tool):
         labels = []
         for i, (e, fd) in enumerate(zip(labeled_entries, labeled_files)):
             try:
+                words = fd["text"]["words"]
+                word_map = {w["uid"]: w for w in words}
                 entity_map = EntityMap(entities=fd["entities"] or [])
                 labels.append(
                     generate_labels(
@@ -820,6 +836,7 @@ class Impira(Tool):
                         fd["name"],
                         e.record,
                         fd["text"]["words"],
+                        word_map,
                         entity_map,
                         model_versions,
                         empty_labels,
