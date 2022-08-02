@@ -991,7 +991,7 @@ class Impira(Tool):
 
         doc_schema = fields_to_doc_schema(filter_inferred_fields(resp["schema"]["children"]))
 
-        doc_schema.fields = {field_mapping.get(n, n): t for (n, t) in doc_schema.fields.items()}
+        doc_schema.fields = {field_mapping.get(n): t for (n, t) in doc_schema.fields.items() if n in field_mapping}
         reverse_field_mapping = {v: k for (k, v) in field_mapping.items()}
         records = [
             {

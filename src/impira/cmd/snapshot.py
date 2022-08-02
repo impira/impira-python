@@ -137,7 +137,7 @@ def main(args):
     workdir = pathlib.Path(args.data) / "capture" / f"{collections[0]}-{uuid4().hex[:4]}"
 
     field_mapping = {}
-    if args.field_mapping:
+    if args.field_mapping.strip():
         mapping = [tuple([a.strip() for a in x.strip().split(":", 1)]) for x in args.field_mapping.split(",")]
         field_mapping = dict(mapping)
 
