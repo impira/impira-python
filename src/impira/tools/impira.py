@@ -509,6 +509,8 @@ def maybe_get_value(label: ScalarLabel, field_type: str) -> Optional[Any]:
         value = value["State"]
     elif field_type == "TimestampLabel" and value is not None:
         value = parse_date(value)
+    elif field_type == "DocumentTagLabel":
+        value = [e["Label"]["Value"] for e in value if e["Label"] and e["Label"]["Value"] is not None]
 
     return value
 
