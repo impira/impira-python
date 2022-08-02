@@ -306,7 +306,7 @@ def generate_labels(
                 )
 
             labels[field_name] = scalar_label
-        elif (value is None or value.value is None) and empty_labels:
+        elif (value is None and empty_labels) or (value is not None and value.location is None):
             labels[field_name] = ScalarLabel(
                 Label=ScalarLabel.L(Source=[]),
                 Context=ScalarLabel.C(Entities=[]),
@@ -516,9 +516,13 @@ def maybe_get_value(label: ScalarLabel, field_type: str) -> Optional[Any]:
 
 
 @validate_arguments
-def row_to_record(log, row, doc_schema: DocSchema, allow_predictions: bool) -> Any:
+def row_to_record(
+    log, row, doc_schema: DocSchema, allow_predictions: bool, reverse_field_mapping: Dict[str, str]
+) -> Any:
     d = {}
-    for field_name, field_type in doc_schema.fields.items():
+    for mapped_name, field_type in doc_schema.fields.items():
+        field_name = reverse_field_mapping.get(mapped_name, mapped_name)
+
         label = None
         field = row.get(field_name)
         if isinstance(field_type, DocSchema):
@@ -531,7 +535,10 @@ def row_to_record(log, row, doc_schema: DocSchema, allow_predictions: bool) -> A
                 ]
                 label = [
                     x
-                    for x in [row_to_record(log, tr, field_type, allow_predictions) for tr in table_rows]
+                    for x in [
+                        row_to_record(log, tr, field_type, allow_predictions, reverse_field_mapping)
+                        for tr in table_rows
+                    ]
                     if x is not None
                 ]
             if not label:
@@ -560,7 +567,7 @@ def row_to_record(log, row, doc_schema: DocSchema, allow_predictions: bool) -> A
 
             label = {"location": location, "value": value}
 
-        d[field_name] = label
+        d[mapped_name] = label
 
     if len(d) == 0:
         return None
@@ -819,7 +826,7 @@ class Impira(Tool):
                     )
                 )
             except Exception as e:
-                log.warning(f"Unable to process record (uid={fd['uid']})")
+                log.warning(f"Unable to process record (uid={fd['uid']}): %s", e)
                 labels.append({})
 
         schema_resp = conn.query("@file_collections::%s limit:0" % (collection_uid))
@@ -948,6 +955,7 @@ class Impira(Tool):
         labeled_files_only=False,
         filter_collection_uid=None,
         label_filter=None,
+        field_mapping: Dict[str, str] = {},
     ):
         log = self._log()
 
@@ -966,11 +974,13 @@ class Impira(Tool):
 
         doc_schema = fields_to_doc_schema(filter_inferred_fields(resp["schema"]["children"]))
 
+        doc_schema.fields = {field_mapping.get(n, n): t for (n, t) in doc_schema.fields.items()}
+        reverse_field_mapping = {v: k for (k, v) in field_mapping.items()}
         records = [
             {
                 "url": row["File"]["download_url"],
                 "name": row_to_fname(row, use_original_filenames),
-                "record": row_to_record(log, row, doc_schema, bool(row["__allow_predictions"])),
+                "record": row_to_record(log, row, doc_schema, bool(row["__allow_predictions"]), reverse_field_mapping),
             }
             for row in resp["data"]
         ]

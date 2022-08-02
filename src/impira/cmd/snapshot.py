@@ -88,6 +88,13 @@ def build_parser(subparsers, parent_parser):
         help="By default, snapshot only uses confirmed labels. This filter will treat any record that matches as confirmed",
     )
 
+    parser.add_argument(
+        "--field-mapping",
+        default=None,
+        type=str,
+        help="A mapping of src_field:target_field names to change the field names while snapshotting",
+    )
+
     parser.set_defaults(func=main)
     return parser
 
@@ -129,6 +136,11 @@ def main(args):
 
     workdir = pathlib.Path(args.data) / "capture" / f"{collections[0]}-{uuid4().hex[:4]}"
 
+    field_mapping = {}
+    if args.field_mapping:
+        mapping = [tuple([a.strip() for a in x.strip().split(":", 1)]) for x in args.field_mapping.split(",")]
+        field_mapping = dict(mapping)
+
     schema = DocSchema(fields={})
     records = []
     for collection_uid in collections:
@@ -139,6 +151,7 @@ def main(args):
             labeled_files_only=args.labeled_files_only,
             filter_collection_uid=args.filter_collection,
             label_filter=args.label_filter,
+            field_mapping=field_mapping,
         )
         schema.fields.update(collection_schema.fields)
         records.extend(collection_records)
