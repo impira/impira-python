@@ -306,7 +306,7 @@ def generate_labels(
                 )
 
             labels[field_name] = scalar_label
-        elif value is None and empty_labels:
+        elif (value is None or value.value is None) and empty_labels:
             labels[field_name] = ScalarLabel(
                 Label=ScalarLabel.L(Source=[]),
                 Context=ScalarLabel.C(Entities=[]),
