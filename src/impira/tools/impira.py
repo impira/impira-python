@@ -223,11 +223,12 @@ def generate_labels(
     words: List[ImpiraWord],
     entity_map: EntityMap,
     model_versions: Dict[str, int],
+    empty_labels: bool = False,
 ) -> Dict[str, Any]:
     labels = {}
     for field_name, value in dict(record).items():
         if isinstance(value, List):
-            rows = [generate_labels(log, file_name, v, words, entity_map, model_versions) for v in value]
+            rows = [generate_labels(log, file_name, v, words, entity_map, model_versions, empty_labels) for v in value]
             row_labels = [
                 RowLabel(
                     Label=RowLabel.L(
@@ -305,6 +306,13 @@ def generate_labels(
                 )
 
             labels[field_name] = scalar_label
+        elif value is None and empty_labels:
+            labels[field_name] = ScalarLabel(
+                Label=ScalarLabel.L(Source=[]),
+                Context=ScalarLabel.C(Entities=[]),
+                IsPrediction=False,
+                ModelVersion=model_versions.get(field_name, 0),
+            )
     return labels
 
 
@@ -622,6 +630,7 @@ class Impira(Tool):
         add_files=False,
         skip_missing_files=False,
         skip_new_fields=False,
+        empty_labels=False,
         collection_name=None,
         max_fields=-1,
         first_file=0,
@@ -804,6 +813,7 @@ class Impira(Tool):
                         fd["text"]["words"],
                         entity_map,
                         model_versions,
+                        empty_labels,
                     )
                 )
             except Exception as e:

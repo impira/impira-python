@@ -71,6 +71,12 @@ def build_parser(subparsers, parent_parser):
         help="Only label existing fields in the collection",
     )
     parser.add_argument(
+        "--label-empty-values",
+        default=False,
+        action="store_true",
+        help="If labels are missing, assign them 'No value' labels",
+    )
+    parser.add_argument(
         "--max-fields",
         default=-1,
         type=int,
@@ -137,6 +143,7 @@ def main(args):
         skip_missing_files=args.skip_missing_files,
         add_files=args.add_files,
         skip_new_fields=args.skip_new_fields,
+        empty_labels=args.label_empty_values,
         collection_name=args.name,
         max_fields=args.max_fields,
         first_file=args.first_file,
