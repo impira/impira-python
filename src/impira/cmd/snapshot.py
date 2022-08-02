@@ -172,4 +172,6 @@ def main(args):
     with open(workdir / "manifest.json", "w") as f:
         f.write(manifest.json(indent=2))
 
-    log.info("Documents and labels have been written to directory '%s'", workdir)
+    # Print to stdout so we can pass it along in a script
+    log.info("Documents and labels have been written to directory:")
+    print(workdir)
