@@ -89,6 +89,13 @@ def build_parser(subparsers, parent_parser):
     )
 
     parser.add_argument(
+        "--allow-low-confidence",
+        default=False,
+        action="store_true",
+        help="Allow low confidence predictions while snapshotting with a label filter",
+    )
+
+    parser.add_argument(
         "--field-mapping",
         default=None,
         type=str,
@@ -136,9 +143,13 @@ def main(args):
 
     workdir = pathlib.Path(args.data) / "capture" / f"{collections[0]}-{uuid4().hex[:4]}"
 
-    field_mapping = {}
-    if args.field_mapping.strip():
-        mapping = [tuple([a.strip() for a in x.strip().split(":", 1)]) for x in args.field_mapping.split(",")]
+    field_mapping = None
+    if args.field_mapping:
+        mapping = [
+            (a, b)
+            for (a, b) in [tuple([a.strip() for a in x.strip().split(":", 1)]) for x in args.field_mapping.split(",")]
+            if a and b
+        ]
         field_mapping = dict(mapping)
 
     schema = DocSchema(fields={})
@@ -151,6 +162,7 @@ def main(args):
             labeled_files_only=args.labeled_files_only,
             filter_collection_uid=args.filter_collection,
             label_filter=args.label_filter,
+            allow_low_confidence=args.allow_low_confidence,
             field_mapping=field_mapping,
         )
         schema.fields.update(collection_schema.fields)

@@ -531,7 +531,12 @@ def maybe_get_value(label: ScalarLabel, field_type: str) -> Optional[Any]:
 
 @validate_arguments
 def row_to_record(
-    log, row, doc_schema: DocSchema, allow_predictions: bool, reverse_field_mapping: Dict[str, str]
+    log,
+    row,
+    doc_schema: DocSchema,
+    allow_predictions: bool,
+    allow_low_confidence: bool,
+    reverse_field_mapping: Dict[str, str],
 ) -> Any:
     d = {}
     for mapped_name, field_type in doc_schema.fields.items():
@@ -550,7 +555,9 @@ def row_to_record(
                 label = [
                     x
                     for x in [
-                        row_to_record(log, tr, field_type, allow_predictions, reverse_field_mapping)
+                        row_to_record(
+                            log, tr, field_type, allow_predictions, allow_low_confidence, reverse_field_mapping
+                        )
                         for tr in table_rows
                     ]
                     if x is not None
@@ -566,7 +573,9 @@ def row_to_record(
                 )
                 continue
 
-            if impira_label.Label.IsPrediction and not (allow_predictions and impira_label.Label.IsConfident):
+            if impira_label.Label.IsPrediction and not (
+                allow_predictions and (allow_low_confidence or impira_label.Label.IsConfident)
+            ):
                 continue
 
             location = maybe_get_location(impira_label, field_type)
@@ -726,6 +735,7 @@ class Impira(Tool):
         else:
             all_fnames = [e.fname.name for e in entries]
             cached = 0
+            missing_file_uids = {}
             log.info("Retrieving text for %d files", len(all_fnames))
             while True:
                 uids = {}
@@ -735,7 +745,7 @@ class Impira(Tool):
                     if cache_dir:
                         for name in b:
                             cache_file = cache_dir / f"{name}.json"
-                            if cache_file.exists():
+                            if name not in missing_file_uids and cache_file.exists():
                                 with open(cache_file, "r") as f:
                                     record = json.load(f)
                                     if record is not None:
@@ -972,7 +982,8 @@ class Impira(Tool):
         labeled_files_only=False,
         filter_collection_uid=None,
         label_filter=None,
-        field_mapping: Dict[str, str] = {},
+        allow_low_confidence=False,
+        field_mapping: Optional[Dict[str, str]] = {},
     ):
         log = self._log()
 
@@ -991,13 +1002,18 @@ class Impira(Tool):
 
         doc_schema = fields_to_doc_schema(filter_inferred_fields(resp["schema"]["children"]))
 
-        doc_schema.fields = {field_mapping.get(n): t for (n, t) in doc_schema.fields.items() if n in field_mapping}
+        if field_mapping is not None:
+            doc_schema.fields = {field_mapping.get(n): t for (n, t) in doc_schema.fields.items() if n in field_mapping}
+        else:
+            field_mapping = {}
         reverse_field_mapping = {v: k for (k, v) in field_mapping.items()}
         records = [
             {
                 "url": row["File"]["download_url"],
                 "name": row_to_fname(row, use_original_filenames),
-                "record": row_to_record(log, row, doc_schema, bool(row["__allow_predictions"]), reverse_field_mapping),
+                "record": row_to_record(
+                    log, row, doc_schema, bool(row["__allow_predictions"]), allow_low_confidence, reverse_field_mapping
+                ),
             }
             for row in resp["data"]
         ]
