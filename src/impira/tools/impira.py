@@ -902,7 +902,7 @@ class Impira(Tool):
                     continue
 
                 existing_label_type = label_name_to_inferred_field_type(existing_field)
-                if existing_label_type != field_type:
+                if existing_label_type != field_type and not skip_type_inference:
                     log.warning(
                         "Field %s already created with type %s, but we're setting it to a value of type %s. You may want to delete it.",
                         f.name,
