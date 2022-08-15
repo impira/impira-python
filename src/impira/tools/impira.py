@@ -818,6 +818,7 @@ class Impira(Tool):
                 labeled_files.append(file_data[i])
                 seen_uids.add(file_data[i]["uid"])
 
+        log.info("Labeled entries: %d", len(labeled_entries))
         if len(labeled_entries) == 0:
             log.warning("No records have labels. Stopping now that uploads have completed.")
             return
@@ -833,6 +834,10 @@ class Impira(Tool):
                 % (collection_uid)
             )["data"]
         }
+
+        first_entry = first_batch * batch_size
+        labeled_entries = labeled_entries[first_entry:]
+        labeled_files = labeled_files[first_entry:]
 
         labels = []
         for i, (e, fd) in enumerate(zip(labeled_entries, labeled_files)):
@@ -856,6 +861,7 @@ class Impira(Tool):
                 log.warning(f"Unable to process record (uid={fd['uid']}): %s", e)
                 labels.append({})
 
+        log.info("Built labels")
         schema_resp = conn.query("@file_collections::%s limit:0" % (collection_uid))
         current_fields = fields_to_doc_schema(filter_inferred_fields(schema_resp["schema"]["children"])).fields
 
@@ -936,8 +942,6 @@ class Impira(Tool):
         # Batch the updates into chunks and retry a few times because of deadlock-issues
         batches = [b for b in batch([x for x in zip(labeled_files, labels)], n=batch_size)]
         for b_idx, b in enumerate(batches):
-            if b_idx < first_batch:
-                continue
             log.info("Updating batch %d/%d", b_idx, len(batches) - 1)
             processed = 0
             for i in range(RETRIES):
