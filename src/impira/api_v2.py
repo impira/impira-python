@@ -5,20 +5,21 @@ api_v2.py
 The core SDK module
 """
 
-from datetime import datetime
-from dateutil.parser import parse as dateparse
-from enum import Enum
-from http import HTTPStatus
 import json
 import logging
 import math
-from pydantic import BaseModel, Field, validate_arguments
+import time
+from datetime import datetime
+from enum import Enum
+from http import HTTPStatus
+from typing import Any, Dict, Generator, List, Optional
+from urllib.parse import quote_plus, urlparse
+
 import requests
+from dateutil.parser import parse as dateparse
+from pydantic import BaseModel, Field, validate_arguments
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-import time
-from typing import Any, Generator, Dict, List, Optional
-from urllib.parse import quote_plus, urlparse
 
 
 class RotateSegment(BaseModel):

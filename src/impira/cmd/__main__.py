@@ -4,12 +4,10 @@ import multiprocessing
 import sys
 import textwrap
 
+
 _module_not_found_error = None
 try:
-    from . import bootstrap
-    from . import capture
-    from . import snapshot
-    from . import snapshot_collections
+    from . import bootstrap, capture, snapshot, snapshot_collections
 except ModuleNotFoundError as e:
     _module_not_found_error = e
 

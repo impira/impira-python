@@ -2,11 +2,12 @@ import pathlib
 from shutil import copyfile
 from uuid import uuid4
 
-from ..tools.textract import Textract
 from ..config import get_logger
 from ..schema import record_to_schema
+from ..tools.textract import Textract
 from ..types import DocManifest
 from .utils import add_datadir_arg
+
 
 log = get_logger("infer-fields")
 
@@ -28,9 +29,7 @@ def build_parser(subparsers, parent_parser):
 def save_record(file_name, record, data_dir):
     fpath = pathlib.Path(file_name)
     fpath_prefix = fpath.name.rsplit(".", 1)[0].replace(" ", "-")
-    fpath_prefix = "".join(
-        [c for c in fpath_prefix if c.isalpha() or c.isdigit() or c == "-"]
-    ).rstrip()
+    fpath_prefix = "".join([c for c in fpath_prefix if c.isalpha() or c.isdigit() or c == "-"]).rstrip()
     workdir = pathlib.Path(data_dir) / "capture" / f"{fpath_prefix}-{uuid4().hex[:4]}"
     workdir.mkdir(parents=True, exist_ok=True)
     copyfile(file_name, workdir / fpath.name)

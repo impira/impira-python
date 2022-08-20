@@ -1,24 +1,18 @@
-import boto3
-from collections import OrderedDict
 import logging
 import os
 import pathlib
-from pydantic import BaseModel, validate_arguments
-from uuid import uuid4
-from typing import Any, Dict, List, Optional, Tuple, Type
 import time
+from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Tuple, Type
+from uuid import uuid4
+
+import boto3
+from pydantic import BaseModel, validate_arguments
 from trp import Document, SelectionElement, Word
 
 from ..cmd.utils import environ_or_required
 from ..schema import record_to_schema, schema_to_model
-from ..types import (
-    Location,
-    CheckboxLabel,
-    DocData,
-    NumberLabel,
-    TextLabel,
-    TimestampLabel,
-)
+from ..types import CheckboxLabel, DocData, Location, NumberLabel, TextLabel, TimestampLabel
 from .tool import Tool
 
 
@@ -97,9 +91,7 @@ class Textract(Tool):
             type=str,
             help="an existing s3 bucket to use for staging files. if not specified, impira cli will try to find an existing one or create one",
         )
-        parser.add_argument(
-            "--s3-prefix", **environ_or_required("TEXTRACT_S3_BUCKET", "")
-        )
+        parser.add_argument("--s3-prefix", **environ_or_required("TEXTRACT_S3_BUCKET", ""))
 
     @validate_arguments
     def __init__(self, config: Config):
@@ -117,17 +109,13 @@ class Textract(Tool):
         for bucket in s3.list_buckets()["Buckets"]:
             if "impira-cli-staging-area" not in bucket["Name"]:
                 continue
-            location = s3.get_bucket_location(Bucket=bucket["Name"])[
-                "LocationConstraint"
-            ]
+            location = s3.get_bucket_location(Bucket=bucket["Name"])["LocationConstraint"]
             if location is None or location == session.region_name:
                 matching_bucket = bucket["Name"]
                 break
 
         if matching_bucket is None:
-            log.info(
-                "No 'impira-cli-staging-area' bucket exists, going to try creating one..."
-            )
+            log.info("No 'impira-cli-staging-area' bucket exists, going to try creating one...")
             matching_bucket = "impira-cli-staging-area-" + str(uuid4())
             s3.create_bucket(Bucket=matching_bucket)
             log.info("Created bucket s3://%s", matching_bucket)
@@ -155,9 +143,7 @@ class Textract(Tool):
         try:
             textract = boto3.client("textract")
             job_info = textract.start_document_analysis(
-                DocumentLocation={
-                    "S3Object": {"Bucket": self.config.s3_bucket, "Name": key}
-                },
+                DocumentLocation={"S3Object": {"Bucket": self.config.s3_bucket, "Name": key}},
                 FeatureTypes=feature_types,
             )
 
@@ -179,9 +165,7 @@ class Textract(Tool):
                 next_token = response.get("NextToken", None)
                 if next_token is None:
                     break
-                response = textract.get_document_analysis(
-                    JobId=job_id, NextToken=next_token
-                )
+                response = textract.get_document_analysis(JobId=job_id, NextToken=next_token)
                 pages.append(response)
         finally:
             log.debug("Cleaning up file on S3")

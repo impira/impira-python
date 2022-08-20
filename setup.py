@@ -20,6 +20,15 @@ if sys.version_info.major == 3 and sys.version_info.minor < 7:
     install_requires.append("typing")
 
 extras_require = {
+    "dev": [
+        "black",
+        "build",
+        "flake8",
+        "flake8-isort",
+        "isort==5.10.1",
+        "pre-commit",
+        "twine",
+    ],
     "cli": [
         "boto3",
         "textract-trp",

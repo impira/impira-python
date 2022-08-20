@@ -1,15 +1,17 @@
-from concurrent.futures import ThreadPoolExecutor
 import pathlib
-import requests
+from concurrent.futures import ThreadPoolExecutor
 from shutil import copyfile
 from uuid import uuid4
 
-from ..tools.impira import Impira
+import requests
+
 from ..config import get_logger
 from ..schema import record_to_schema
-from ..types import DocSchema, DocManifest
-from .utils import add_datadir_arg
+from ..tools.impira import Impira
+from ..types import DocManifest, DocSchema
 from .snapshot import download_files
+from .utils import add_datadir_arg
+
 
 log = get_logger("snapshot-collections")
 

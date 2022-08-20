@@ -1,29 +1,29 @@
+import json
+import pathlib
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from enum import Enum
-import json
-import os
-import pathlib
-from pydantic import BaseModel, validate_arguments, ValidationError
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
-import time
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
-from .. import Impira as ImpiraAPI, FieldType, InferredFieldType, parse_date, APIError
+from pydantic import BaseModel, ValidationError, validate_arguments
 
+from .. import APIError, FieldType
+from .. import Impira as ImpiraAPI
+from .. import InferredFieldType, parse_date
 from ..cmd.utils import environ_or_required
 from ..schema import schema_to_model
 from ..types import (
-    Location,
-    combine_locations,
     CheckboxLabel,
-    SignatureLabel,
     DocData,
     DocSchema,
+    DocumentTagLabel,
+    Location,
     NumberLabel,
+    SignatureLabel,
     TextLabel,
     TimestampLabel,
-    DocumentTagLabel,
+    combine_locations
 )
 from ..utils import batch
 from .tool import Tool
@@ -388,7 +388,9 @@ def retrieve_text(conn, collection_uid, uid_batch, skip_downloading_text):
 
         uid_filter = "in(uid, %s)" % (", ".join(['"%s"' % u for u in uids]))
         resp = conn.query(
-            f"@`file_collections::{collection_uid}`{data_projection(skip_downloading_text)} {uid_filter} File.IsPreprocessed=true",
+            f"""@`file_collections::{collection_uid}`
+                    {data_projection(skip_downloading_text)}
+                    {uid_filter} File.IsPreprocessed=true""",
             mode="poll",
             timeout=360,
             cursor=cursor,
@@ -443,7 +445,9 @@ def find_path(root, *path):
 
 @validate_arguments
 def filter_inferred_fields(fields):
-    return [f for f in fields if "comment" in f and json.loads(f["comment"])["field_template"] == "inferred_field_spec"]
+    return [
+        f for f in fields if "comment" in f and json.loads(f["comment"])["field_template"] == "inferred_field_spec"
+    ]
 
 
 @validate_arguments
@@ -502,8 +506,8 @@ def maybe_get_location(label: ScalarLabel, field_type: str) -> Optional[Location
     if field_type in ("CheckboxLabel", "SignatureLabel"):
         locations = label.Label.Source.BBoxes
     elif field_type in ("TextLabel", "NumberLabel", "TimestampLabel"):
-        locations = [l.location for l in label.Label.Source]
-        uids = [l.uid for l in label.Label.Source]
+        locations = [x.location for x in label.Label.Source]
+        uids = [x.uid for x in label.Label.Source]
     elif field_type == "DocumentTagLabel":
         locations = None
     else:
@@ -584,7 +588,8 @@ def row_to_record(
                 value = maybe_get_value(impira_label, field_type)
             except Exception as e:
                 log.warning(
-                    f"Record with uid={row['uid']} has an invalid label for field `{field_name}`. Failed to parse: {e}. Skipping..."
+                    f"Record with uid={row['uid']} has an invalid label"
+                    f" for field `{field_name}`. Failed to parse: {e}. Skipping..."
                 )
                 continue
 
@@ -910,7 +915,8 @@ class Impira(Tool):
                 existing_label_type = label_name_to_inferred_field_type(existing_field)
                 if existing_label_type != field_type and not skip_type_inference:
                     log.warning(
-                        "Field %s already created with type %s, but we're setting it to a value of type %s. You may want to delete it.",
+                        "Field %s already created with type %s, but we're setting it"
+                        " to a value of type %s. You may want to delete it.",
                         f.name,
                         existing_label_type,
                         field_type,
@@ -934,8 +940,6 @@ class Impira(Tool):
         if len(field_specs) > 0:
             for b in batch(field_specs, n=5):
                 conn.create_fields(collection_uid, b)
-
-        fields_to_update = [f for f in schema if len(f.path) == 0 and f.name in field_names_to_update]
 
         log.info("Running update on %d files" % len(labeled_files))
 

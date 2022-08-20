@@ -3,11 +3,12 @@ import pathlib
 from shutil import copyfile
 from uuid import uuid4
 
-from ..tools.impira import Impira
 from ..config import get_logger
 from ..schema import schema_to_model
+from ..tools.impira import Impira
 from ..types import DocData, DocManifest
 from .utils import environ_or_required
+
 
 log = get_logger("bootstrap")
 
@@ -27,7 +28,9 @@ def build_parser(subparsers, parent_parser):
     )
 
     collection_args = parser.add_mutually_exclusive_group()
-    collection_args.add_argument("--collection-prefix", **environ_or_required("IMPIRA_COLLECTION_PREFIX", "impira-cli"))
+    collection_args.add_argument(
+        "--collection-prefix", **environ_or_required("IMPIRA_COLLECTION_PREFIX", "impira-cli")
+    )
     collection_args.add_argument(
         "--collection",
         default=None,

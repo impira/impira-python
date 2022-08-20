@@ -1,11 +1,13 @@
-from datetime import datetime, date
-from enum import Enum
 import pathlib
-from pydantic import BaseModel, validate_arguments, StrictFloat, StrictInt
 import random
-from typing import Any, ForwardRef, Dict, List, Optional, Union, Callable
+from datetime import date, datetime
+from enum import Enum
+from typing import Any, Callable, Dict, ForwardRef, List, Optional, Union
+
+from pydantic import BaseModel, StrictFloat, StrictInt, validate_arguments
 
 from . import fmt
+
 
 # All values in the bbox are based on percentages
 class Location(BaseModel):
