@@ -7,7 +7,7 @@ import textwrap
 
 _module_not_found_error = None
 try:
-    from . import bootstrap, capture, snapshot, snapshot_collections
+    from . import bootstrap, capture, login, snapshot, snapshot_collections
 except ModuleNotFoundError as e:
     _module_not_found_error = e
 
@@ -37,8 +37,8 @@ def main(args=None):
     parser = argparse.ArgumentParser(description="impira is a CLI tool to work with Impira.")
     subparsers = parser.add_subparsers(help="sub-command help", dest="subcommand", required=True)
 
-    for module in [capture, snapshot, bootstrap, snapshot_collections]:
-        cmd_parser = module.build_parser(subparsers, parent_parser)
+    for module in [capture, login, snapshot, bootstrap, snapshot_collections]:
+        module.build_parser(subparsers, parent_parser)
 
     args = parser.parse_args(args=args)
 

@@ -5,6 +5,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
+import os
 
 from pydantic import BaseModel, ValidationError, validate_arguments
 
@@ -12,6 +13,7 @@ from .. import APIError, FieldType
 from .. import Impira as ImpiraAPI
 from .. import InferredFieldType, parse_date
 from ..cmd.utils import environ_or_required
+from ..credentials import Credentials
 from ..schema import schema_to_model
 from ..types import (
     CheckboxLabel,
@@ -23,7 +25,7 @@ from ..types import (
     SignatureLabel,
     TextLabel,
     TimestampLabel,
-    combine_locations
+    combine_locations,
 )
 from ..utils import batch
 from .tool import Tool
@@ -632,19 +634,14 @@ RETRIES = 10
 
 
 class Impira(Tool):
-    class Config(BaseModel):
-        api_token: str
-        org_name: str
-        base_url: str
-
     @staticmethod
     def add_arguments(parser):
-        parser.add_argument("--api-token", **environ_or_required("IMPIRA_API_TOKEN"))
-        parser.add_argument("--org-name", **environ_or_required("IMPIRA_ORG_NAME"))
-        parser.add_argument("--base-url", **environ_or_required("IMPIRA_BASE_URL", "https://app.impira.com"))
+        parser.add_argument("--api-token", default=os.environ.get("IMPIRA_API_TOKEN"))
+        parser.add_argument("--org-name", default=os.environ.get("IMPIRA_ORG_NAME"))
+        parser.add_argument("--base-url", default=os.environ.get("IMPIRA_BASE_URL"))
 
     @validate_arguments
-    def __init__(self, config: Config):
+    def __init__(self, config: Credentials):
         self.config = config
 
     def _conn(self):

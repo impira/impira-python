@@ -8,6 +8,10 @@ def environ_or_required(key, default=None):
     )
 
 
+# def credential_or_required(env_key, org_name=None, base_url=None):
+#   if not CREDENTIALS_PATH.exists():
+
+
 def add_datadir_arg(parser):
     parser.add_argument(
         "--data",

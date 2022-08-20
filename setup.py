@@ -15,6 +15,7 @@ install_requires = [
     "python-dateutil",
     "pydantic",
     "requests",
+    "toml",
 ]
 if sys.version_info.major == 3 and sys.version_info.minor < 7:
     install_requires.append("typing")
@@ -41,6 +42,7 @@ extras_require = {
     ],
 }
 extras_require["all"] = sorted({package for packages in extras_require.values() for package in packages})
+extras_require["dev"].extend(sorted(extras_require["cli"]) + sorted(extras_require["doc"]))
 
 setuptools.setup(
     name="impira",

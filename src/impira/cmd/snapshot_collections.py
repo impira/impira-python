@@ -11,6 +11,7 @@ from ..tools.impira import Impira
 from ..types import DocManifest, DocSchema
 from .snapshot import download_files
 from .utils import add_datadir_arg
+from ..credentials import Credentials
 
 
 log = get_logger("snapshot-collections")
@@ -45,7 +46,8 @@ def build_parser(subparsers, parent_parser):
         "--original-names",
         default=False,
         action="store_true",
-        help="Use original filenames (without concatenating a uid). This will fail if two files in the collection have the same name",
+        help="Use original filenames (without concatenating a uid). This will fail if two"
+        " files in the collection have the same name",
     )
 
     parser.add_argument(
@@ -67,7 +69,12 @@ def build_parser(subparsers, parent_parser):
 
 
 def main(args):
-    impira = Impira(config=Impira.Config(**vars(args)))
+    credentials = Credentials.load(**vars(args))
+    if credentials is None:
+        log.fatal("Unauthorized access")
+        exit(1)
+
+    impira = Impira(config=credentials)
     workdir = pathlib.Path(args.data) / "collections" / uuid4().hex[:4]
 
     doc_schema, records = impira.snapshot_collections(

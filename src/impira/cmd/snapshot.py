@@ -1,16 +1,15 @@
 import pathlib
 from concurrent.futures import ThreadPoolExecutor
-from shutil import copyfile
 from uuid import uuid4
 
 import requests
 
 from ..api_v2 import urljoin
 from ..config import get_logger
-from ..schema import record_to_schema
 from ..tools.impira import Impira
 from ..types import DocManifest, DocSchema
 from .utils import add_datadir_arg
+from ..credentials import Credentials
 
 
 log = get_logger("snapshot")
@@ -128,9 +127,14 @@ def download_files(records, parallelism, workdir):
 def main(args):
     if (not args.collection and not args.all_collections) or (args.collection and args.all_collections):
         log.fatal("Must specify exactly one of --collection or --all-collections")
-        return
+        exit(1)
 
-    impira = Impira(config=Impira.Config(**vars(args)))
+    credentials = Credentials.load(**vars(args))
+    if credentials is None:
+        log.fatal("Unauthorized access")
+        exit(1)
+
+    impira = Impira(config=credentials)
 
     if args.all_collections:
         conn = impira._conn()
@@ -157,7 +161,10 @@ def main(args):
     schema = DocSchema(fields={})
     records = []
     for collection_uid in collections:
-        log.info("Snapshotting collection %s" % (urljoin(args.base_url, "o", args.org_name, "fc", collection_uid)))
+        log.info(
+            "Snapshotting collection %s"
+            % (urljoin(impira.config.base_url, "o", impira.config.org_name, "fc", collection_uid))
+        )
         collection_schema, collection_records = impira.snapshot(
             collection_uid=collection_uid,
             use_original_filenames=args.original_names,

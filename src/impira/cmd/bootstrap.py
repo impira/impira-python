@@ -8,6 +8,7 @@ from ..schema import schema_to_model
 from ..tools.impira import Impira
 from ..types import DocData, DocManifest
 from .utils import environ_or_required
+from ..credentials import Credentials
 
 
 log = get_logger("bootstrap")
@@ -24,7 +25,8 @@ def build_parser(subparsers, parent_parser):
         "-d",
         required=True,
         type=str,
-        help="Directory to retrieve documents. This directory should contain one or more documents and a manifest (manifest.json)",
+        help="Directory to retrieve documents. This directory should contain one or more"
+        " documents and a manifest (manifest.json)",
     )
 
     collection_args = parser.add_mutually_exclusive_group()
@@ -134,7 +136,12 @@ def main(args):
             if doc.record is not None:
                 doc.record = M.parse_obj(doc.record)
 
-    tool = Impira(config=Impira.Config(**vars(args)))
+    credentials = Credentials.load(**vars(args))
+    if credentials is None:
+        log.fatal("Unauthorized access")
+        exit(1)
+
+    tool = Impira(config=credentials)
     tool.run(
         manifest.doc_schema,
         manifest.docs,
