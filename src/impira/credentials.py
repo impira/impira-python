@@ -46,7 +46,7 @@ def get_credentials(org_name=None, base_url=None) -> Optional[Credentials]:
     if _CREDENTIALS is not None:
         val = _CREDENTIALS.get((org_name, base_url), None)
         if val is not None:
-            return CREDENTIALS_PATH[val]
+            return val
 
         # If there is only one credential matching the unspecified org_name or base_url, return it
         matching = [
