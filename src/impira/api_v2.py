@@ -90,53 +90,44 @@ class InferredFieldType(Enum):
     :py:class:\`FieldSpec\` instances from them.
     """
 
-    text = {"fn": "`text_string-dev-1`", "target": "File", "type": "STRING"}
-    number = {"fn": "`text_number-dev-1`", "target": "File", "type": "NUMBER"}
-    timestamp = {"fn": "`text_date-dev-1`", "target": "File", "type": "TIMESTAMP"}
-    checkbox = {"fn": "checkbox", "target": "File", "type": "STRING"}
-    signature = {"fn": "region_signature", "target": "File", "type": "STRING"}
+    text = {"expression": "`text_string-dev-1`(File.text)", "type": "STRING"}
+    number = {"expression": "`text_number-dev-1`(File.text)", "type": "NUMBER"}
+    timestamp = {"expression": "`text_date-dev-1`(File.text)", "type": "TIMESTAMP"}
+    checkbox = {"expression": "checkbox(File.text)", "type": "STRING"}
+    signature = {"expression": "region_signature(File.text)", "type": "STRING"}
     table = {
-        "fn": "entity_one_many",
-        "target": "File",
+        "expression": "entity_one_many(File.text)",
         "type": "ENTITY",
         "isList": True,
     }
-    document_tag = {"fn": "document_tag", "target": "File", "type": "ENTITY", "isList": True}
+    document_tag = {"expression": "document_tag(File)", "type": "ENTITY", "isList": True}
 
-    def expr(self, partition_field=None):
-        partition_s = f", `{partition_field}`" if partition_field is not None else ""
-        return f"{self.value['fn']}({self.value['target']}{partition_s})"
+    @property
+    def expr(self):
+        return self.value["expression"]
 
     @classmethod
     def match_trainer(cls, trainer: str):
         ret = None
         for x in cls:
-            if trainer in x.value["fn"]:
+            if trainer in x.expr:
                 assert ret is None, "Matched multiple trainers: %s and %s" % (ret, x)
                 ret = x
         assert ret is not None, "Unknown trainer: %s" % (trainer)
         return ret
 
     @validate_arguments
-    def build_field_spec(self, field_name: str, path: List[str] = [], partition_field=None) -> FieldSpec:
+    def build_field_spec(self, field_name: str, path: List[str] = []) -> FieldSpec:
         """Build a field spec for an inferred field type.
 
         :param field_name: The name of the field to create.
         :type field_name: str
         :param path: Specify a path if this is a sub-field of a table. For example, if this field should be created inside of a table named `T`, path should be `["T"]`.
         :type path: List[str]
-        :param partition_field: Optionally specify a field to partition this field by.
-        :type path: str
 
         :returns A :py:class:\`FieldSpec\`."""
 
-        return FieldSpec(
-            field=field_name,
-            path=path,
-            expression=self.expr(partition_field),
-            type=self.value["type"],
-            isList=self.value.get("isList"),
-        )
+        return FieldSpec(field=field_name, path=path, **self.value)
 
 
 class InvalidRequest(Exception):
@@ -404,7 +395,6 @@ class Impira:
         field_name: str,
         inferred_field_type: InferredFieldType,
         path: List[str] = [],
-        partition_field=None,
     ):
         """Create an inferred field. This is just a wrapper around :py:func:\`create_field\`.
 
@@ -416,15 +406,11 @@ class Impira:
         :type field_name: :py:class:\`InferredFieldType\`
         :param path: Specify a path if this is a sub-field of a table. For example, if this field should be created inside of a table named `T`, path should be `["T"]`.
         :type path: List[str]
-        :param partition_field: Optionally specify a field to partition this field by.
-        :type path: str
 
         :return: None
         """
 
-        field_spec = inferred_field_type.build_field_spec(
-            field_name=field_name, path=path, partition_field=partition_field
-        )
+        field_spec = inferred_field_type.build_field_spec(field_name=field_name, path=path)
         return self.create_field(collection_id, field_spec)
 
     @validate_arguments
